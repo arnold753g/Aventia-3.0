@@ -104,6 +104,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
 import { getRolLabel } from '~/utils/formatters'
+import UserAvatar from '~/components/usuarios/UserAvatar.vue'
 
 const authStore = useAuthStore()
 

@@ -30,6 +30,8 @@ import Textarea from 'primevue/textarea'
 import InputNumber from 'primevue/inputnumber'
 import ProgressSpinner from 'primevue/progressspinner'
 import Divider from 'primevue/divider'
+import InputMask from 'primevue/inputmask'
+import InputSwitch from 'primevue/inputswitch'
 
 const localeEs = {
   firstDayOfWeek: 1,
@@ -91,4 +93,6 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('InputNumber', InputNumber)
   nuxtApp.vueApp.component('ProgressSpinner', ProgressSpinner)
   nuxtApp.vueApp.component('Divider', Divider)
+  nuxtApp.vueApp.component('InputMask', InputMask)
+  nuxtApp.vueApp.component('InputSwitch', InputSwitch)
 })

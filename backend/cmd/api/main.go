@@ -43,6 +43,7 @@ func main() {
 	// Auth routes (publicas)
 	authHandler := handlers.NewAuthHandler()
 	usuarioHandler := handlers.NewUsuarioHandler()
+	agenciaHandler := handlers.NewAgenciaHandler()
 
 	auth := api.PathPrefix("/auth").Subrouter()
 	auth.HandleFunc("/register", authHandler.Register).Methods("POST")
@@ -61,6 +62,24 @@ func main() {
 	// Rutas autenticadas para todos los usuarios
 	protected.HandleFunc("/usuarios/{id}", usuarioHandler.GetUsuario).Methods("GET")
 	protected.HandleFunc("/usuarios/{id}", usuarioHandler.UpdateUsuario).Methods("PUT")
+
+	// ========== RUTAS DE AGENCIAS TURISTICAS ==========
+	// Rutas públicas
+	api.HandleFunc("/agencias", agenciaHandler.GetAgencias).Methods("GET")
+	api.HandleFunc("/agencias/{id}", agenciaHandler.GetAgencia).Methods("GET")
+	api.HandleFunc("/agencias/data/departamentos", agenciaHandler.GetDepartamentos).Methods("GET")
+	api.HandleFunc("/agencias/data/categorias", agenciaHandler.GetCategorias).Methods("GET")
+	api.HandleFunc("/agencias/data/dias", agenciaHandler.GetDias).Methods("GET")
+	api.HandleFunc("/agencias/data/encargados", agenciaHandler.GetEncargados).Methods("GET")
+
+	// Rutas protegidas (requieren autenticación)
+	protected.HandleFunc("/agencias/rapida", agenciaHandler.CreateAgenciaRapida).Methods("POST")
+	protected.HandleFunc("/agencias/completa", agenciaHandler.CreateAgenciaCompleta).Methods("POST")
+	protected.HandleFunc("/agencias/{id}", agenciaHandler.UpdateAgencia).Methods("PUT")
+	protected.HandleFunc("/agencias/{id}/fotos/upload", agenciaHandler.UploadAgenciaFoto).Methods("POST")
+	protected.HandleFunc("/agencias/{id}/fotos/{foto_id}", agenciaHandler.RemoveFotoWithFile).Methods("DELETE")
+	protected.HandleFunc("/agencias/{id}/especialidades", agenciaHandler.AddEspecialidad).Methods("POST")
+	protected.HandleFunc("/agencias/{id}/especialidades/{especialidad_id}", agenciaHandler.RemoveEspecialidad).Methods("DELETE")
 
 	// ========== RUTAS DE ATRACCIONES TURISTICAS ==========
 	atraccionHandler := handlers.NewAtraccionHandler()
@@ -97,6 +116,9 @@ func main() {
 	adminRouter.HandleFunc("/usuarios/stats", usuarioHandler.GetUsuarioStats).Methods("GET")
 	adminRouter.HandleFunc("/atracciones/{id}", atraccionHandler.DeleteAtraccion).Methods("DELETE")
 	adminRouter.HandleFunc("/atracciones/stats", atraccionHandler.GetStats).Methods("GET")
+	adminRouter.HandleFunc("/agencias/{id}", agenciaHandler.DeleteAgencia).Methods("DELETE")
+	adminRouter.HandleFunc("/agencias/{id}/status", agenciaHandler.UpdateAgenciaStatus).Methods("PATCH")
+	adminRouter.HandleFunc("/agencias/stats", agenciaHandler.GetStats).Methods("GET")
 
 	// Profile
 	protected.HandleFunc("/profile", authHandler.GetProfile).Methods("GET")

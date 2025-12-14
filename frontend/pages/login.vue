@@ -112,6 +112,7 @@ import { useAuthStore } from '~/stores/auth'
 
 const toast = useToast()
 const authStore = useAuthStore()
+const route = useRoute()
 
 const email = ref('')
 const password = ref('')
@@ -120,6 +121,20 @@ const loading = ref(false)
 const fillCredentials = (emailVal: string, passVal: string) => {
   email.value = emailVal
   password.value = passVal
+}
+
+const getDefaultHome = () => {
+  if (authStore.isAdmin) return '/admin/dashboard'
+  return '/dashboard'
+}
+
+const getSafeRedirect = () => {
+  const redirect = route.query.redirect
+  if (typeof redirect !== 'string') return null
+  if (!redirect.startsWith('/') || redirect.startsWith('//')) return null
+  if (redirect.startsWith('/login') || redirect.startsWith('/registro')) return null
+  if (redirect.startsWith('/admin') && !authStore.isAdmin) return null
+  return redirect
 }
 
 const handleLogin = async () => {
@@ -136,14 +151,9 @@ const handleLogin = async () => {
         life: 3000
       })
 
+      const target = getSafeRedirect() || getDefaultHome()
       setTimeout(() => {
-        if (authStore.isAdmin) {
-          navigateTo('/admin/dashboard')
-        } else if (authStore.isEncargado) {
-          navigateTo('/agencia/dashboard')
-        } else {
-          navigateTo('/dashboard')
-        }
+        navigateTo(target)
       }, 500)
     } else {
       toast.add({
@@ -167,7 +177,8 @@ const handleLogin = async () => {
 
 onMounted(() => {
   if (authStore.isAuthenticated) {
-    navigateTo('/dashboard')
+    const target = getSafeRedirect() || getDefaultHome()
+    navigateTo(target)
   }
 })
 </script>

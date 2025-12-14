@@ -5,7 +5,8 @@ export default defineNuxtRouteMiddleware((to) => {
 
   // Si no hay sesión, redirige a login
   if (!authStore.isAuthenticated) {
-    return navigateTo('/login')
+    const redirect = encodeURIComponent(to.fullPath || '/')
+    return navigateTo(`/login?redirect=${redirect}`)
   }
 
   // Rutas bajo /admin requieren rol admin

@@ -126,6 +126,7 @@ const fillCredentials = (emailVal: string, passVal: string) => {
 const getDefaultHome = () => {
   if (authStore.isAdmin) return '/admin/dashboard'
   if (authStore.isEncargado) return '/agencia/dashboard'
+  if (authStore.isTurista) return '/turista/dashboard'
   return '/dashboard'
 }
 
@@ -136,6 +137,7 @@ const getSafeRedirect = () => {
   if (redirect.startsWith('/login') || redirect.startsWith('/registro')) return null
   if (redirect.startsWith('/admin') && !authStore.isAdmin) return null
   if (redirect.startsWith('/agencia') && !authStore.isEncargado) return null
+  if (redirect.startsWith('/turista') && !authStore.isTurista) return null
   return redirect
 }
 

@@ -234,10 +234,20 @@ func (h *UsuarioHandler) GetUsuarios(w http.ResponseWriter, r *http.Request) {
 
 // GetUsuario obtiene un usuario por ID
 func (h *UsuarioHandler) GetUsuario(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		utils.ErrorResponse(w, "INVALID_ID", "ID invalido", nil, http.StatusBadRequest)
+		return
+	}
+
+	if claims.Rol != "admin" && claims.UserID != uint(id) {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para ver este usuario", nil, http.StatusForbidden)
 		return
 	}
 
@@ -400,10 +410,20 @@ func (h *UsuarioHandler) CreateUsuario(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUsuario actualiza un usuario
 func (h *UsuarioHandler) UpdateUsuario(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		utils.ErrorResponse(w, "INVALID_ID", "ID invalido", nil, http.StatusBadRequest)
+		return
+	}
+
+	if claims.Rol != "admin" && claims.UserID != uint(id) {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para actualizar este usuario", nil, http.StatusForbidden)
 		return
 	}
 

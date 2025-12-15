@@ -60,8 +60,8 @@ func main() {
 
 	// ========== RUTAS DE USUARIOS ==========
 	// Rutas autenticadas para todos los usuarios
-	protected.HandleFunc("/usuarios/{id}", usuarioHandler.GetUsuario).Methods("GET")
-	protected.HandleFunc("/usuarios/{id}", usuarioHandler.UpdateUsuario).Methods("PUT")
+	protected.HandleFunc("/usuarios/{id:[0-9]+}", usuarioHandler.GetUsuario).Methods("GET")
+	protected.HandleFunc("/usuarios/{id:[0-9]+}", usuarioHandler.UpdateUsuario).Methods("PUT")
 
 	// ========== RUTAS DE AGENCIAS TURISTICAS ==========
 	// Rutas públicas
@@ -81,6 +81,8 @@ func main() {
 	protected.HandleFunc("/agencias/{id:[0-9]+}/fotos/{foto_id:[0-9]+}", agenciaHandler.RemoveFotoWithFile).Methods("DELETE")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/especialidades", agenciaHandler.AddEspecialidad).Methods("POST")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/especialidades/{especialidad_id:[0-9]+}", agenciaHandler.RemoveEspecialidad).Methods("DELETE")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquete-politicas", agenciaHandler.GetPaquetePoliticas).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquete-politicas", agenciaHandler.UpdatePaquetePoliticas).Methods("PUT")
 
 	// ========== RUTAS DE ATRACCIONES TURISTICAS ==========
 	atraccionHandler := handlers.NewAtraccionHandler()

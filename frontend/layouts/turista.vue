@@ -1,0 +1,101 @@
+<template>
+  <div class="min-h-screen bg-gray-50">
+    <nav class="fixed top-0 inset-x-0 bg-white shadow-lg border-b border-gray-200 z-50">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-8">
+            <NuxtLink to="/turista/dashboard" class="flex items-center gap-2">
+              <i class="pi pi-compass text-3xl text-blue-600"></i>
+              <span class="text-2xl font-bold text-gray-900">ANDARIA</span>
+            </NuxtLink>
+
+            <div class="hidden md:flex items-center gap-1">
+              <NuxtLink
+                to="/turista/dashboard"
+                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                active-class="bg-blue-50 text-blue-700 font-semibold"
+              >
+                <i class="pi pi-home mr-2"></i>
+                Dashboard
+              </NuxtLink>
+
+              <NuxtLink
+                to="/turista/atracciones"
+                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                active-class="bg-blue-50 text-blue-700 font-semibold"
+              >
+                <i class="pi pi-map-marker mr-2"></i>
+                Atracciones
+              </NuxtLink>
+
+              <NuxtLink
+                to="/turista/perfil"
+                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                active-class="bg-blue-50 text-blue-700 font-semibold"
+              >
+                <i class="pi pi-user mr-2"></i>
+                Mi perfil
+              </NuxtLink>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <UserAvatar
+                :nombre="authStore.user?.nombre || ''"
+                :apellido="authStore.user?.apellido_paterno || ''"
+                :rol="authStore.user?.rol"
+                size="sm"
+                showStatus
+                :status="authStore.user?.status"
+              />
+              <div class="hidden md:block">
+                <p class="text-sm font-semibold text-gray-900">
+                  {{ authStore.user?.nombre }} {{ authStore.user?.apellido_paterno }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  {{ getRolLabel(authStore.user?.rol || '') }}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              icon="pi pi-sign-out"
+              severity="danger"
+              text
+              rounded
+              @click="handleLogout"
+              v-tooltip.bottom="'Cerrar sesión'"
+            />
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="pt-16">
+      <slot />
+    </main>
+
+    <footer class="bg-white border-t border-gray-200 mt-12">
+      <div class="max-w-7xl mx-auto px-4 py-6">
+        <div class="text-center text-sm text-gray-600">
+          <p>&copy; 2024 ANDARIA - Sistema de Gestión Turística de Bolivia</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useAuthStore } from '~/stores/auth'
+import { getRolLabel } from '~/utils/formatters'
+import UserAvatar from '~/components/usuarios/UserAvatar.vue'
+
+const authStore = useAuthStore()
+
+const handleLogout = () => {
+  authStore.logout()
+  navigateTo('/login')
+}
+</script>
+

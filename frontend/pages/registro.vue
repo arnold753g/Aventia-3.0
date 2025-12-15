@@ -524,7 +524,7 @@ const handleSubmit = async ({ valid, values }: any) => {
       })
 
       setTimeout(() => {
-        navigateTo('/dashboard')
+        navigateTo('/turista/dashboard')
       }, 1500)
     } else {
       toast.add({

@@ -241,6 +241,60 @@
           </div>
         </template>
       </Card>
+
+      <Card v-if="activeTab === 'politicas'" class="mb-4">
+        <template #title>Políticas de paquetes</template>
+        <template #content>
+          <div v-if="politicasLoading" class="space-y-3">
+            <Skeleton height="240px" />
+          </div>
+
+          <div v-else class="space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Edad mínima de pago (niños)
+              </label>
+              <InputNumber v-model="politicasForm.edad_minima_pago" :min="0" :max="18" class="w-full" />
+              <p class="text-xs text-gray-500 mt-1">Menores de esta edad no pagan.</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Recargo por paquete privado (%)
+              </label>
+              <InputNumber
+                v-model="politicasForm.recargo_privado_porcentaje"
+                mode="decimal"
+                suffix="%"
+                :min="0"
+                :max="100"
+                :minFractionDigits="2"
+                :maxFractionDigits="2"
+                class="w-full"
+              />
+              <p class="text-xs text-gray-500 mt-1">Se aplica como porcentaje adicional cuando el paquete es privado.</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Política de cancelación
+              </label>
+              <Textarea
+                v-model="politicasForm.politica_cancelacion"
+                rows="5"
+                autoResize
+                class="w-full"
+                placeholder="Ej: Cancelación sin costo hasta 24h antes. Luego se cobra 50%..."
+              />
+              <p class="text-xs text-gray-500 mt-1">Aplica a todos los paquetes de tu agencia.</p>
+            </div>
+
+            <div class="flex justify-end">
+              <Button label="Guardar cambios" icon="pi pi-save" :loading="savingPoliticas" @click="savePoliticas" />
+            </div>
+          </div>
+        </template>
+      </Card>
     </template>
 
     <Toast />
@@ -257,7 +311,17 @@ definePageMeta({
 })
 
 const toast = useToast()
-const { getMiAgencia, uploadFoto: uploadFotoApi, removeFoto: removeFotoApi, addEspecialidad, removeEspecialidad, updateAgencia, getCategorias } = useAgencias()
+const {
+  getMiAgencia,
+  uploadFoto: uploadFotoApi,
+  removeFoto: removeFotoApi,
+  addEspecialidad,
+  removeEspecialidad,
+  updateAgencia,
+  getCategorias,
+  getPaquetePoliticas,
+  updatePaquetePoliticas
+} = useAgencias()
 
 const agencia = ref<any>(null)
 const categorias = ref<any[]>([])
@@ -266,7 +330,9 @@ const uploading = ref(false)
 const uploadProgress = ref<{ current: number; total: number } | null>(null)
 const addingEspecialidad = ref(false)
 const savingPagos = ref(false)
-const activeTab = ref<'general' | 'fotos' | 'especialidades' | 'pagos'>('general')
+const politicasLoading = ref(false)
+const savingPoliticas = ref(false)
+const activeTab = ref<'general' | 'fotos' | 'especialidades' | 'pagos' | 'politicas'>('general')
 
 const especialidadForm = ref({
   categoria_id: null as number | null,
@@ -279,11 +345,18 @@ const pagoForm = ref({
   acepta_efectivo: false
 })
 
+const politicasForm = ref({
+  edad_minima_pago: 6 as number | null,
+  recargo_privado_porcentaje: 0 as number | null,
+  politica_cancelacion: ''
+})
+
 const tabs = [
   { label: 'General', value: 'general', icon: 'pi pi-info-circle' },
   { label: 'Fotos', value: 'fotos', icon: 'pi pi-image' },
   { label: 'Especialidades', value: 'especialidades', icon: 'pi pi-tag' },
-  { label: 'Pagos', value: 'pagos', icon: 'pi pi-wallet' }
+  { label: 'Pagos', value: 'pagos', icon: 'pi pi-wallet' },
+  { label: 'Políticas', value: 'politicas', icon: 'pi pi-file' }
 ]
 
 const agenciaId = computed(() => Number(agencia.value?.id || 0))
@@ -322,6 +395,7 @@ const loadAgencia = async () => {
         acepta_transferencia: response.data.acepta_transferencia,
         acepta_efectivo: response.data.acepta_efectivo
       }
+      await loadPoliticas(Number(response.data.id))
     } else {
       agencia.value = null
     }
@@ -570,6 +644,65 @@ const savePagos = async () => {
     toast.add({ severity: 'error', summary: 'Error', detail: error.data?.error?.message || 'No se pudo guardar', life: 3000 })
   } finally {
     savingPagos.value = false
+  }
+}
+
+const loadPoliticas = async (idOverride?: number) => {
+  const id = Number(idOverride || agenciaId.value)
+  if (!id) return
+
+  politicasLoading.value = true
+  try {
+    const response: any = await getPaquetePoliticas(id)
+    if (response.success) {
+      politicasForm.value = {
+        edad_minima_pago: response.data?.edad_minima_pago ?? 6,
+        recargo_privado_porcentaje: response.data?.recargo_privado_porcentaje ?? 0,
+        politica_cancelacion: response.data?.politica_cancelacion || ''
+      }
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudieron cargar las politicas',
+      life: 3000
+    })
+  } finally {
+    politicasLoading.value = false
+  }
+}
+
+const savePoliticas = async () => {
+  const id = agenciaId.value
+  if (!id) return
+
+  savingPoliticas.value = true
+  try {
+    const payload = {
+      edad_minima_pago: Number(politicasForm.value.edad_minima_pago ?? 6),
+      recargo_privado_porcentaje: Number(politicasForm.value.recargo_privado_porcentaje ?? 0),
+      politica_cancelacion: politicasForm.value.politica_cancelacion?.trim() ? politicasForm.value.politica_cancelacion.trim() : null
+    }
+
+    const response: any = await updatePaquetePoliticas(id, payload)
+    if (response.success) {
+      toast.add({ severity: 'success', summary: 'Guardado', detail: 'Políticas actualizadas', life: 2500 })
+      politicasForm.value = {
+        edad_minima_pago: response.data?.edad_minima_pago ?? payload.edad_minima_pago,
+        recargo_privado_porcentaje: response.data?.recargo_privado_porcentaje ?? payload.recargo_privado_porcentaje,
+        politica_cancelacion: response.data?.politica_cancelacion || payload.politica_cancelacion || ''
+      }
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudieron guardar las politicas',
+      life: 3000
+    })
+  } finally {
+    savingPoliticas.value = false
   }
 }
 

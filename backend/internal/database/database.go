@@ -69,6 +69,7 @@ func runMigrations() error {
 		// Tablas con dependencias nivel 2
 		&models.AtraccionTuristica{},
 		&models.AgenciaTurismo{},
+		&models.PaquetePolitica{},
 
 		// Tablas de relaciones
 		&models.AtraccionSubcategoria{},

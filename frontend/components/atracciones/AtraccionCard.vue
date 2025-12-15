@@ -1,5 +1,5 @@
 <template>
-  <Card class="h-full hover:shadow-lg transition-shadow cursor-pointer" @click="navigateTo(`/admin/atracciones/${atraccion.id}`)">
+  <Card class="h-full hover:shadow-lg transition-shadow cursor-pointer" @click="goToDetail">
     <template #header>
       <div class="relative h-48 overflow-hidden">
         <img
@@ -7,6 +7,7 @@
           :src="fotoPrincipal"
           :alt="atraccion.nombre"
           class="w-full h-full object-cover"
+          loading="lazy"
           @error="handleImageError"
           @load="handleImageLoad"
         />
@@ -110,8 +111,7 @@ import {
   getNivelDificultadLabel,
   getNivelDificultadColor,
   getStatusAtraccionLabel,
-  getStatusAtraccionColor,
-  formatPrecioBoliviano
+  getStatusAtraccionColor
 } from '~/utils/formatters-atraccion'
 
 const props = defineProps<{
@@ -120,6 +120,12 @@ const props = defineProps<{
 
 const config = useRuntimeConfig()
 const assetsBase = config.public.apiBase.replace(/\/api\/v1\/?$/, '')
+const route = useRoute()
+
+const goToDetail = () => {
+  const base = route.path.startsWith('/admin') ? '/admin/atracciones' : '/turista/atracciones'
+  navigateTo(`${base}/${props.atraccion.id}`)
+}
 
 const imageError = ref(false)
 
@@ -154,7 +160,4 @@ const handleImageLoad = (event: Event) => {
     atraccion: props.atraccion.nombre
   })
 }
-</script>
-
-<script setup lang="ts">
 </script>

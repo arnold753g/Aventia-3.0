@@ -82,6 +82,28 @@ export const useAgencias = () => {
     })
   }
 
+  // Políticas de paquetes (por agencia)
+  const getPaquetePoliticas = async (agenciaId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/paquete-politicas`, {
+      headers: authHeader()
+    })
+  }
+
+  const updatePaquetePoliticas = async (
+    agenciaId: number,
+    data: {
+      edad_minima_pago: number
+      recargo_privado_porcentaje: number
+      politica_cancelacion?: string | null
+    }
+  ) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/paquete-politicas`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
   // Eliminar agencia
   const deleteAgencia = async (id: number) => {
     return $fetch(`${apiBase}/admin/agencias/${id}`, {
@@ -180,6 +202,8 @@ export const useAgencias = () => {
     createAgenciaRapida,
     createAgenciaCompleta,
     updateAgencia,
+    getPaquetePoliticas,
+    updatePaquetePoliticas,
     deleteAgencia,
     updateStatus,
     uploadFoto,

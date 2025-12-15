@@ -9,7 +9,8 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   if (!authStore.isEncargado) {
-    return navigateTo(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+    if (authStore.isAdmin) return navigateTo('/admin/dashboard')
+    if (authStore.isTurista) return navigateTo('/turista/dashboard')
+    return navigateTo('/dashboard')
   }
 })
-

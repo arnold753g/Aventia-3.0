@@ -125,6 +125,7 @@ const fillCredentials = (emailVal: string, passVal: string) => {
 
 const getDefaultHome = () => {
   if (authStore.isAdmin) return '/admin/dashboard'
+  if (authStore.isEncargado) return '/agencia/dashboard'
   return '/dashboard'
 }
 
@@ -134,6 +135,7 @@ const getSafeRedirect = () => {
   if (!redirect.startsWith('/') || redirect.startsWith('//')) return null
   if (redirect.startsWith('/login') || redirect.startsWith('/registro')) return null
   if (redirect.startsWith('/admin') && !authStore.isAdmin) return null
+  if (redirect.startsWith('/agencia') && !authStore.isEncargado) return null
   return redirect
 }
 

@@ -1,57 +1,35 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Navbar -->
     <nav class="fixed top-0 inset-x-0 bg-white shadow-lg border-b border-gray-200 z-50">
       <div class="max-w-7xl mx-auto px-4">
         <div class="flex items-center justify-between h-16">
-          <!-- Logo -->
           <div class="flex items-center gap-8">
-            <NuxtLink to="/dashboard" class="flex items-center gap-2">
-              <i class="pi pi-compass text-3xl text-blue-600"></i>
+            <NuxtLink to="/agencia/dashboard" class="flex items-center gap-2">
+              <i class="pi pi-building text-3xl text-green-600"></i>
               <span class="text-2xl font-bold text-gray-900">ANDARIA</span>
             </NuxtLink>
 
-            <!-- Navigation Links -->
             <div class="hidden md:flex items-center gap-1">
               <NuxtLink
-                to="/dashboard"
+                to="/agencia/dashboard"
                 class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                active-class="bg-blue-50 text-blue-600 font-semibold"
+                active-class="bg-green-50 text-green-700 font-semibold"
               >
                 <i class="pi pi-home mr-2"></i>
                 Dashboard
               </NuxtLink>
 
               <NuxtLink
-                to="/admin/usuarios"
+                to="/agencia/mi-agencia"
                 class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                active-class="bg-blue-50 text-blue-600 font-semibold"
-              >
-                <i class="pi pi-users mr-2"></i>
-                Usuarios
-              </NuxtLink>
-
-              <NuxtLink
-                to="/admin/atracciones"
-                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                active-class="bg-blue-50 text-blue-600 font-semibold"
-              >
-                <i class="pi pi-map-marker mr-2"></i>
-                Atracciones
-              </NuxtLink>
-
-              <NuxtLink
-                to="/admin/agencias"
-                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                active-class="bg-blue-50 text-blue-600 font-semibold"
+                active-class="bg-green-50 text-green-700 font-semibold"
               >
                 <i class="pi pi-building mr-2"></i>
-                Agencias
+                Mi agencia
               </NuxtLink>
             </div>
           </div>
 
-          <!-- User Menu -->
           <div class="flex items-center gap-4">
             <div class="flex items-center gap-2">
               <UserAvatar
@@ -78,19 +56,17 @@
               text
               rounded
               @click="handleLogout"
-              v-tooltip.bottom="'Cerrar Sesión'"
+              v-tooltip.bottom="'Cerrar sesión'"
             />
           </div>
         </div>
       </div>
     </nav>
 
-    <!-- Main Content -->
     <main class="pt-16">
       <slot />
     </main>
 
-    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-12">
       <div class="max-w-7xl mx-auto px-4 py-6">
         <div class="text-center text-sm text-gray-600">
@@ -113,3 +89,4 @@ const handleLogout = () => {
   navigateTo('/login')
 }
 </script>
+

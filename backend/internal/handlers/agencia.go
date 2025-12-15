@@ -191,6 +191,12 @@ func (h *AgenciaHandler) CreateAgenciaRapida(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Solo administradores pueden crear agencias
+	if claims.Rol != "admin" {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para crear agencias", nil, http.StatusForbidden)
+		return
+	}
+
 	// Crear agencia con valores por defecto para campos requeridos
 	agencia := models.AgenciaTurismo{
 		NombreComercial:      req.NombreComercial,
@@ -255,6 +261,12 @@ func (h *AgenciaHandler) CreateAgenciaCompleta(w http.ResponseWriter, r *http.Re
 	claims, ok := r.Context().Value("claims").(*utils.JWTClaims)
 	if !ok {
 		utils.ErrorResponse(w, "UNAUTHORIZED", "No autorizado", nil, http.StatusUnauthorized)
+		return
+	}
+
+	// Solo administradores pueden crear agencias
+	if claims.Rol != "admin" {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para crear agencias", nil, http.StatusForbidden)
 		return
 	}
 
@@ -329,6 +341,11 @@ func (h *AgenciaHandler) CreateAgenciaCompleta(w http.ResponseWriter, r *http.Re
 
 // UpdateAgencia actualiza una agencia
 func (h *AgenciaHandler) UpdateAgencia(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, _ := strconv.ParseUint(vars["id"], 10, 32)
 
@@ -338,10 +355,23 @@ func (h *AgenciaHandler) UpdateAgencia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !canManageAgencia(claims, &agencia) {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para gestionar esta agencia", nil, http.StatusForbidden)
+		return
+	}
+
 	var req models.UpdateAgenciaRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, "INVALID_JSON", "JSON inválido", err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	// Encargado: bloquear campos restringidos
+	if claims.Rol == "encargado_agencia" {
+		if req.VisiblePublico != nil || req.Status != nil || req.LicenciaTuristica != nil || req.EncargadoPrincipalID != nil {
+			utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para modificar campos restringidos", nil, http.StatusForbidden)
+			return
+		}
 	}
 
 	// Aplicar actualizaciones
@@ -544,8 +574,28 @@ func (h *AgenciaHandler) UpdateAgenciaStatus(w http.ResponseWriter, r *http.Requ
 
 // AddEspecialidad agrega una especialidad a la agencia
 func (h *AgenciaHandler) AddEspecialidad(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
-	agenciaID, _ := strconv.ParseUint(vars["id"], 10, 32)
+	agenciaID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		utils.ErrorResponse(w, "INVALID_ID", "ID invǭlido", nil, http.StatusBadRequest)
+		return
+	}
+
+	var agencia models.AgenciaTurismo
+	if err := database.GetDB().First(&agencia, agenciaID).Error; err != nil {
+		utils.ErrorResponse(w, "NOT_FOUND", "Agencia no encontrada", nil, http.StatusNotFound)
+		return
+	}
+
+	if !canManageAgencia(claims, &agencia) {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para gestionar esta agencia", nil, http.StatusForbidden)
+		return
+	}
 
 	var req struct {
 		CategoriaID uint `json:"categoria_id" validate:"required"`
@@ -592,9 +642,33 @@ func (h *AgenciaHandler) AddEspecialidad(w http.ResponseWriter, r *http.Request)
 
 // RemoveEspecialidad elimina una especialidad
 func (h *AgenciaHandler) RemoveEspecialidad(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
-	agenciaID, _ := strconv.ParseUint(vars["id"], 10, 32)
-	especialidadID, _ := strconv.ParseUint(vars["especialidad_id"], 10, 32)
+	agenciaID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		utils.ErrorResponse(w, "INVALID_ID", "ID invalido", nil, http.StatusBadRequest)
+		return
+	}
+	especialidadID, err := strconv.ParseUint(vars["especialidad_id"], 10, 32)
+	if err != nil {
+		utils.ErrorResponse(w, "INVALID_ID", "ID invalido", nil, http.StatusBadRequest)
+		return
+	}
+
+	var agencia models.AgenciaTurismo
+	if err := database.GetDB().First(&agencia, agenciaID).Error; err != nil {
+		utils.ErrorResponse(w, "NOT_FOUND", "Agencia no encontrada", nil, http.StatusNotFound)
+		return
+	}
+
+	if !canManageAgencia(claims, &agencia) {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para gestionar esta agencia", nil, http.StatusForbidden)
+		return
+	}
 
 	if err := database.GetDB().Where("id = ? AND agencia_id = ?", especialidadID, agenciaID).Delete(&models.AgenciaEspecialidad{}).Error; err != nil {
 		utils.ErrorResponse(w, "DB_ERROR", "Error al eliminar especialidad", err.Error(), http.StatusInternalServerError)
@@ -690,4 +764,34 @@ func (h *AgenciaHandler) GetEncargados(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SuccessResponse(w, encargados, "", http.StatusOK)
+}
+
+// GetMiAgencia obtiene la agencia asignada al encargado autenticado
+func (h *AgenciaHandler) GetMiAgencia(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
+	if claims.Rol != "encargado_agencia" {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para ver esta agencia", nil, http.StatusForbidden)
+		return
+	}
+
+	var agencia models.AgenciaTurismo
+	err := database.GetDB().
+		Preload("Departamento").
+		Preload("EncargadoPrincipal").
+		Preload("Fotos").
+		Preload("Especialidades.Categoria").
+		Preload("Dias").
+		Where("encargado_principal_id = ?", claims.UserID).
+		First(&agencia).Error
+
+	if err != nil {
+		utils.ErrorResponse(w, "NOT_FOUND", "No tiene una agencia asignada", nil, http.StatusNotFound)
+		return
+	}
+
+	utils.SuccessResponse(w, agencia, "Agencia obtenida exitosamente", http.StatusOK)
 }

@@ -107,6 +107,16 @@ func (h *AgenciaHandler) UploadAgenciaFoto(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
+	if !canManageAgencia(claims, &agencia) {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para gestionar esta agencia", nil, http.StatusForbidden)
+		return
+	}
+
 	// Verificar límite de 10 fotos
 	var fotosCount int64
 	database.GetDB().Model(&models.AgenciaFoto{}).Where("agencia_id = ?", agenciaID).Count(&fotosCount)
@@ -177,11 +187,27 @@ func (h *AgenciaHandler) UploadAgenciaFoto(w http.ResponseWriter, r *http.Reques
 
 // RemoveFotoWithFile elimina una foto de la agencia y el archivo del disco
 func (h *AgenciaHandler) RemoveFotoWithFile(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
 	vars := mux.Vars(r)
 	agenciaID, _ := strconv.ParseUint(vars["id"], 10, 32)
 	fotoID, err := strconv.ParseUint(vars["foto_id"], 10, 32)
 	if err != nil {
 		utils.ErrorResponse(w, "INVALID_ID", "ID de foto inválido", nil, http.StatusBadRequest)
+		return
+	}
+
+	var agencia models.AgenciaTurismo
+	if err := database.GetDB().First(&agencia, agenciaID).Error; err != nil {
+		utils.ErrorResponse(w, "NOT_FOUND", "Agencia no encontrada", nil, http.StatusNotFound)
+		return
+	}
+
+	if !canManageAgencia(claims, &agencia) {
+		utils.ErrorResponse(w, "FORBIDDEN", "No tiene permisos para gestionar esta agencia", nil, http.StatusForbidden)
 		return
 	}
 

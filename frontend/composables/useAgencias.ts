@@ -43,6 +43,13 @@ export const useAgencias = () => {
     })
   }
 
+  // Obtener mi agencia (encargado)
+  const getMiAgencia = async () => {
+    return $fetch(`${apiBase}/agencias/me`, {
+      headers: authHeader()
+    })
+  }
+
   // Crear agencia rápida
   const createAgenciaRapida = async (data: {
     nombre_comercial: string
@@ -169,6 +176,7 @@ export const useAgencias = () => {
   return {
     getAgencias,
     getAgencia,
+    getMiAgencia,
     createAgenciaRapida,
     createAgenciaCompleta,
     updateAgencia,

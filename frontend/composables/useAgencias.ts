@@ -104,6 +104,37 @@ export const useAgencias = () => {
     })
   }
 
+  // Datos de pago (transferencia / QR)
+  const getAgenciaDatosPago = async (agenciaId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/datos-pago`, {
+      headers: authHeader()
+    })
+  }
+
+  const updateAgenciaDatosPago = async (
+    agenciaId: number,
+    data: {
+      nombre_banco?: string | null
+      numero_cuenta?: string | null
+      nombre_titular?: string | null
+      activo?: boolean
+    }
+  ) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/datos-pago`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  const uploadQrPago = async (agenciaId: number, formData: FormData) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/datos-pago/qr/upload`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: formData
+    })
+  }
+
   // Eliminar agencia
   const deleteAgencia = async (id: number) => {
     return $fetch(`${apiBase}/admin/agencias/${id}`, {
@@ -204,6 +235,9 @@ export const useAgencias = () => {
     updateAgencia,
     getPaquetePoliticas,
     updatePaquetePoliticas,
+    getAgenciaDatosPago,
+    updateAgenciaDatosPago,
+    uploadQrPago,
     deleteAgencia,
     updateStatus,
     uploadFoto,

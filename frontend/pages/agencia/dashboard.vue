@@ -42,6 +42,28 @@
           </div>
         </template>
       </Card>
+
+      <Card class="surface-card md:col-span-2">
+        <template #title>
+          <div class="flex items-center gap-2">
+            <i class="pi pi-briefcase" style="color: var(--color-primary);"></i>
+            <span>Paquetes turísticos</span>
+          </div>
+        </template>
+        <template #content>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div class="text-sm text-gray-600">
+                Crea y gestiona tus paquetes (salida diaria o salida única) y revisa sus salidas habilitadas.
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <Button label="Ver paquetes" icon="pi pi-eye" outlined @click="navigateTo('/agencia/paquetes')" />
+              <Button label="Nuevo paquete" icon="pi pi-plus" @click="navigateTo('/agencia/paquetes/nuevo')" />
+            </div>
+          </div>
+        </template>
+      </Card>
     </div>
 
     <Toast />
@@ -86,4 +108,3 @@ onMounted(() => {
   loadAgencia()
 })
 </script>
-

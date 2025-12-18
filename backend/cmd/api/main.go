@@ -83,6 +83,36 @@ func main() {
 	protected.HandleFunc("/agencias/{id:[0-9]+}/especialidades/{especialidad_id:[0-9]+}", agenciaHandler.RemoveEspecialidad).Methods("DELETE")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/paquete-politicas", agenciaHandler.GetPaquetePoliticas).Methods("GET")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/paquete-politicas", agenciaHandler.UpdatePaquetePoliticas).Methods("PUT")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/datos-pago", agenciaHandler.GetAgenciaDatosPago).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/datos-pago", agenciaHandler.UpdateAgenciaDatosPago).Methods("PUT")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/datos-pago/qr/upload", agenciaHandler.UploadAgenciaDatosPagoQrFoto).Methods("POST")
+
+	// ========== PAQUETES TURISTICOS (Encargado/Admin) ==========
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes", agenciaHandler.GetAgenciaPaquetes).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes", agenciaHandler.CreateAgenciaPaquete).Methods("POST")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}", agenciaHandler.GetAgenciaPaquete).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}", agenciaHandler.UpdateAgenciaPaquete).Methods("PUT")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}", agenciaHandler.DeleteAgenciaPaquete).Methods("DELETE")
+
+	// Fotos del paquete (máximo 6)
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/fotos/upload", agenciaHandler.UploadPaqueteFoto).Methods("POST")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/fotos/{foto_id:[0-9]+}", agenciaHandler.RemovePaqueteFoto).Methods("DELETE")
+
+	// Itinerario
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/itinerario", agenciaHandler.GetPaqueteItinerario).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/itinerario", agenciaHandler.CreatePaqueteItinerario).Methods("POST")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/itinerario/{itinerario_id:[0-9]+}", agenciaHandler.UpdatePaqueteItinerario).Methods("PUT")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/itinerario/{itinerario_id:[0-9]+}", agenciaHandler.DeletePaqueteItinerario).Methods("DELETE")
+
+	// Atracciones del paquete
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/atracciones", agenciaHandler.GetPaqueteAtracciones).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/atracciones", agenciaHandler.AddPaqueteAtraccion).Methods("POST")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/atracciones/{paquete_atraccion_id:[0-9]+}", agenciaHandler.UpdatePaqueteAtraccion).Methods("PUT")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/atracciones/{paquete_atraccion_id:[0-9]+}", agenciaHandler.RemovePaqueteAtraccion).Methods("DELETE")
+
+	// Salidas habilitadas (edición logística/estado)
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/salidas", agenciaHandler.GetPaqueteSalidas).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/salidas/{salida_id:[0-9]+}", agenciaHandler.UpdatePaqueteSalida).Methods("PUT")
 
 	// ========== RUTAS DE ATRACCIONES TURISTICAS ==========
 	atraccionHandler := handlers.NewAtraccionHandler()

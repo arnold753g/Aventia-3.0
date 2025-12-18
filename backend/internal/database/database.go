@@ -70,6 +70,12 @@ func runMigrations() error {
 		&models.AtraccionTuristica{},
 		&models.AgenciaTurismo{},
 		&models.PaquetePolitica{},
+		&models.AgenciaDatosPago{},
+		&models.PaqueteTuristico{},
+		&models.PaqueteSalidaHabilitada{},
+		&models.PaqueteItinerario{},
+		&models.PaqueteFoto{},
+		&models.PaqueteAtraccion{},
 
 		// Tablas de relaciones
 		&models.AtraccionSubcategoria{},

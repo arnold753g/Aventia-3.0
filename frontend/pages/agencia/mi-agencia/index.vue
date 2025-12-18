@@ -242,6 +242,128 @@
         </template>
       </Card>
 
+      <Card v-if="activeTab === 'pagos'" class="mb-4">
+        <template #title>Datos de pago (QR / Transferencia)</template>
+        <template #content>
+          <div v-if="datosPagoLoading" class="space-y-3">
+            <Skeleton height="220px" />
+          </div>
+
+          <div v-else class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Banco</label>
+                <Select
+                  v-model="datosPagoForm.nombre_banco"
+                  :options="bancos"
+                  placeholder="Seleccionar banco"
+                  class="w-full"
+                  showClear
+                  :disabled="!pagoForm.acepta_transferencia || savingDatosPago"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Número de cuenta</label>
+                <InputText
+                  v-model="datosPagoForm.numero_cuenta"
+                  class="w-full"
+                  placeholder="Ej: 1234567890"
+                  :disabled="!pagoForm.acepta_transferencia || savingDatosPago"
+                />
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Titular</label>
+                <InputText
+                  v-model="datosPagoForm.nombre_titular"
+                  class="w-full"
+                  placeholder="Ej: Agencia de Turismo SRL"
+                  :disabled="!pagoForm.acepta_transferencia || savingDatosPago"
+                />
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-2">
+                <InputSwitch v-model="datosPagoForm.activo" :disabled="savingDatosPago" />
+                <span class="text-sm text-gray-700">Activo</span>
+              </div>
+              <Button label="Guardar datos" icon="pi pi-save" :loading="savingDatosPago" @click="saveDatosPago" />
+            </div>
+
+            <Divider />
+
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-sm font-semibold text-gray-900">QR de pago</h4>
+                  <p class="text-xs text-gray-500">Sube una imagen del código QR para pagos.</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                <div class="md:col-span-1">
+                  <div
+                    v-if="qrPreview || datosPago?.qr_pago_foto"
+                    class="border rounded-lg p-2 bg-white"
+                  >
+                    <img
+                      :src="qrPreview || resolveFotoUrl(datosPago?.qr_pago_foto)"
+                      alt="QR de pago"
+                      class="w-full h-48 object-contain"
+                    />
+                  </div>
+                  <div v-else class="text-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <i class="pi pi-qrcode text-5xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-600">Sin QR cargado</p>
+                  </div>
+                </div>
+
+                <div class="md:col-span-2 space-y-3">
+                  <input
+                    ref="qrFileInput"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    class="hidden"
+                    :disabled="uploadingQr"
+                    @change="handleQrFileSelect"
+                  />
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    <Button
+                      label="Seleccionar QR"
+                      icon="pi pi-upload"
+                      outlined
+                      :disabled="!pagoForm.acepta_qr || uploadingQr"
+                      @click="qrFileInput?.click()"
+                    />
+                    <Button
+                      label="Subir QR"
+                      icon="pi pi-cloud-upload"
+                      :loading="uploadingQr"
+                      :disabled="!pagoForm.acepta_qr || !qrFile || uploadingQr"
+                      @click="uploadQr"
+                    />
+                    <Button
+                      v-if="qrFile"
+                      label="Quitar"
+                      icon="pi pi-times"
+                      severity="danger"
+                      text
+                      :disabled="uploadingQr"
+                      @click="clearQrSelection"
+                    />
+                  </div>
+                  <small class="text-gray-500">JPG/PNG/WEBP. Máx 5MB.</small>
+                  <Message v-if="!pagoForm.acepta_qr" severity="warn" :closable="false">
+                    Activa el método QR para subir un código.
+                  </Message>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </Card>
+
       <Card v-if="activeTab === 'politicas'" class="mb-4">
         <template #title>Políticas de paquetes</template>
         <template #content>
@@ -320,7 +442,10 @@ const {
   updateAgencia,
   getCategorias,
   getPaquetePoliticas,
-  updatePaquetePoliticas
+  updatePaquetePoliticas,
+  getAgenciaDatosPago,
+  updateAgenciaDatosPago,
+  uploadQrPago
 } = useAgencias()
 
 const agencia = ref<any>(null)
@@ -332,6 +457,9 @@ const addingEspecialidad = ref(false)
 const savingPagos = ref(false)
 const politicasLoading = ref(false)
 const savingPoliticas = ref(false)
+const datosPagoLoading = ref(false)
+const savingDatosPago = ref(false)
+const uploadingQr = ref(false)
 const activeTab = ref<'general' | 'fotos' | 'especialidades' | 'pagos' | 'politicas'>('general')
 
 const especialidadForm = ref({
@@ -344,6 +472,33 @@ const pagoForm = ref({
   acepta_transferencia: false,
   acepta_efectivo: false
 })
+
+const datosPago = ref<any>(null)
+const bancos = [
+  'Banco Nacional de Bolivia S.A.',
+  'Banco de Crédito de Bolivia S.A.',
+  'Banco Mercantil Santa Cruz S.A.',
+  'Banco Ganadero S.A.',
+  'Banco Económico S.A.',
+  'Banco Unión S.A.',
+  'Banco BISA S.A.',
+  'Banco FIE S.A.',
+  'BancoSol S.A.',
+  'Banco Ecofuturo S.A.',
+  'Banco Prodem S.A.',
+  'Banco Fortaleza S.A.'
+]
+
+const datosPagoForm = ref({
+  nombre_banco: null as string | null,
+  numero_cuenta: '',
+  nombre_titular: '',
+  activo: true
+})
+
+const qrFileInput = ref<HTMLInputElement | null>(null)
+const qrFile = ref<File | null>(null)
+const qrPreview = ref<string | null>(null)
 
 const politicasForm = ref({
   edad_minima_pago: 6 as number | null,
@@ -395,7 +550,7 @@ const loadAgencia = async () => {
         acepta_transferencia: response.data.acepta_transferencia,
         acepta_efectivo: response.data.acepta_efectivo
       }
-      await loadPoliticas(Number(response.data.id))
+      await Promise.all([loadPoliticas(Number(response.data.id)), loadDatosPago(Number(response.data.id))])
     } else {
       agencia.value = null
     }
@@ -647,6 +802,122 @@ const savePagos = async () => {
   }
 }
 
+const loadDatosPago = async (idOverride?: number) => {
+  const id = Number(idOverride || agenciaId.value)
+  if (!id) return
+
+  datosPagoLoading.value = true
+  try {
+    const response: any = await getAgenciaDatosPago(id)
+    if (response.success) {
+      datosPago.value = response.data
+      datosPagoForm.value = {
+        nombre_banco: response.data?.nombre_banco || null,
+        numero_cuenta: response.data?.numero_cuenta || '',
+        nombre_titular: response.data?.nombre_titular || '',
+        activo: response.data?.activo ?? true
+      }
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudieron cargar los datos de pago',
+      life: 3000
+    })
+  } finally {
+    datosPagoLoading.value = false
+  }
+}
+
+const saveDatosPago = async () => {
+  const id = agenciaId.value
+  if (!id) return
+
+  savingDatosPago.value = true
+  try {
+    const payload = {
+      nombre_banco: datosPagoForm.value.nombre_banco ?? '',
+      numero_cuenta: datosPagoForm.value.numero_cuenta?.trim() || '',
+      nombre_titular: datosPagoForm.value.nombre_titular?.trim() || '',
+      activo: !!datosPagoForm.value.activo
+    }
+
+    const response: any = await updateAgenciaDatosPago(id, payload)
+    if (response.success) {
+      datosPago.value = response.data
+      toast.add({ severity: 'success', summary: 'Guardado', detail: 'Datos de pago actualizados', life: 2500 })
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudieron guardar los datos de pago',
+      life: 3000
+    })
+  } finally {
+    savingDatosPago.value = false
+  }
+}
+
+const handleQrFileSelect = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    toast.add({ severity: 'warn', summary: 'Formato no permitido', detail: 'Use JPG, PNG o WEBP', life: 3000 })
+    input.value = ''
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    toast.add({ severity: 'warn', summary: 'Archivo muy grande', detail: 'El archivo no debe superar 5MB', life: 3000 })
+    input.value = ''
+    return
+  }
+
+  qrFile.value = file
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    qrPreview.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file)
+}
+
+const clearQrSelection = () => {
+  qrFile.value = null
+  qrPreview.value = null
+  if (qrFileInput.value) qrFileInput.value.value = ''
+}
+
+const uploadQr = async () => {
+  const id = agenciaId.value
+  if (!id || !qrFile.value) return
+
+  uploadingQr.value = true
+  try {
+    const formData = new FormData()
+    formData.append('qr_pago_foto', qrFile.value)
+
+    const response: any = await uploadQrPago(id, formData)
+    if (response.success) {
+      datosPago.value = response.data
+      toast.add({ severity: 'success', summary: 'QR actualizado', detail: 'Se subió el QR correctamente', life: 2500 })
+      clearQrSelection()
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudo subir el QR',
+      life: 3000
+    })
+  } finally {
+    uploadingQr.value = false
+  }
+}
+
 const loadPoliticas = async (idOverride?: number) => {
   const id = Number(idOverride || agenciaId.value)
   if (!id) return
@@ -682,7 +953,7 @@ const savePoliticas = async () => {
     const payload = {
       edad_minima_pago: Number(politicasForm.value.edad_minima_pago ?? 6),
       recargo_privado_porcentaje: Number(politicasForm.value.recargo_privado_porcentaje ?? 0),
-      politica_cancelacion: politicasForm.value.politica_cancelacion?.trim() ? politicasForm.value.politica_cancelacion.trim() : null
+      politica_cancelacion: politicasForm.value.politica_cancelacion?.trim() || ''
     }
 
     const response: any = await updatePaquetePoliticas(id, payload)

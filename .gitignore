@@ -1,3 +1,6 @@
 # IDEs
 .idea/
 .vscode/
+
+# Backend uploads
+backend/uploads/

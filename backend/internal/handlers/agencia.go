@@ -228,6 +228,12 @@ func (h *AgenciaHandler) CreateAgenciaRapida(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if _, err := ensureAgenciaDatosPagoRow(tx, agencia.ID); err != nil {
+		tx.Rollback()
+		utils.ErrorResponse(w, "DB_ERROR", "Error al crear datos de pago", err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		utils.ErrorResponse(w, "DB_ERROR", "Error al crear agencia", err.Error(), http.StatusInternalServerError)
 		return
@@ -341,6 +347,12 @@ func (h *AgenciaHandler) CreateAgenciaCompleta(w http.ResponseWriter, r *http.Re
 	if _, err := ensurePaquetePoliticasRow(tx, agencia.ID); err != nil {
 		tx.Rollback()
 		utils.ErrorResponse(w, "DB_ERROR", "Error al crear politicas de paquetes", err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := ensureAgenciaDatosPagoRow(tx, agencia.ID); err != nil {
+		tx.Rollback()
+		utils.ErrorResponse(w, "DB_ERROR", "Error al crear datos de pago", err.Error(), http.StatusInternalServerError)
 		return
 	}
 

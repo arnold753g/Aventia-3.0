@@ -36,6 +36,15 @@
                 <i class="pi pi-briefcase mr-2"></i>
                 Paquetes
               </NuxtLink>
+
+              <NuxtLink
+                to="/agencia/ventas"
+                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                active-class="bg-green-50 text-green-700 font-semibold"
+              >
+                <i class="pi pi-shopping-bag mr-2"></i>
+                Ventas
+              </NuxtLink>
             </div>
           </div>
 

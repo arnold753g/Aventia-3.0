@@ -32,6 +32,7 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Divider from 'primevue/divider'
 import InputMask from 'primevue/inputmask'
 import InputSwitch from 'primevue/inputswitch'
+import MeterGroup from 'primevue/metergroup'
 
 const localeEs = {
   firstDayOfWeek: 1,
@@ -95,4 +96,5 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('Divider', Divider)
   nuxtApp.vueApp.component('InputMask', InputMask)
   nuxtApp.vueApp.component('InputSwitch', InputSwitch)
+  nuxtApp.vueApp.component('MeterGroup', MeterGroup)
 })

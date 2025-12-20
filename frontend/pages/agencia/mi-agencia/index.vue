@@ -364,6 +364,42 @@
         </template>
       </Card>
 
+      <Card v-if="activeTab === 'capacidad'" class="mb-4">
+        <template #title>Capacidad operativa</template>
+        <template #content>
+          <div v-if="capacidadLoading" class="space-y-3">
+            <Skeleton height="200px" />
+          </div>
+
+          <div v-else class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Maximo salidas por dia</label>
+                <InputNumber v-model="capacidadForm.max_salidas_por_dia" :min="0" :max="1000" class="w-full" />
+                <p class="text-xs text-gray-500 mt-1">Maximo total de salidas que tu agencia puede manejar en un dia.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Maximo salidas por horario</label>
+                <InputNumber v-model="capacidadForm.max_salidas_por_horario" :min="0" :max="1000" class="w-full" />
+                <p class="text-xs text-gray-500 mt-1">Limite simultaneo por horario (manana, tarde, todo_dia).</p>
+              </div>
+            </div>
+
+            <Message
+              v-if="(capacidadForm.max_salidas_por_horario ?? 0) > (capacidadForm.max_salidas_por_dia ?? 0)"
+              severity="warn"
+              :closable="false"
+            >
+              El maximo por horario no puede ser mayor al maximo por dia.
+            </Message>
+
+            <div class="flex justify-end">
+              <Button label="Guardar cambios" icon="pi pi-save" :loading="savingCapacidad" @click="saveCapacidad" />
+            </div>
+          </div>
+        </template>
+      </Card>
+
       <Card v-if="activeTab === 'politicas'" class="mb-4">
         <template #title>Políticas de paquetes</template>
         <template #content>
@@ -445,7 +481,9 @@ const {
   updatePaquetePoliticas,
   getAgenciaDatosPago,
   updateAgenciaDatosPago,
-  uploadQrPago
+  uploadQrPago,
+  getAgenciaCapacidad,
+  updateAgenciaCapacidad
 } = useAgencias()
 
 const agencia = ref<any>(null)
@@ -460,7 +498,9 @@ const savingPoliticas = ref(false)
 const datosPagoLoading = ref(false)
 const savingDatosPago = ref(false)
 const uploadingQr = ref(false)
-const activeTab = ref<'general' | 'fotos' | 'especialidades' | 'pagos' | 'politicas'>('general')
+const capacidadLoading = ref(false)
+const savingCapacidad = ref(false)
+const activeTab = ref<'general' | 'fotos' | 'especialidades' | 'pagos' | 'politicas' | 'capacidad'>('general')
 
 const especialidadForm = ref({
   categoria_id: null as number | null,
@@ -506,11 +546,17 @@ const politicasForm = ref({
   politica_cancelacion: ''
 })
 
+const capacidadForm = ref({
+  max_salidas_por_dia: 5 as number | null,
+  max_salidas_por_horario: 3 as number | null
+})
+
 const tabs = [
   { label: 'General', value: 'general', icon: 'pi pi-info-circle' },
   { label: 'Fotos', value: 'fotos', icon: 'pi pi-image' },
   { label: 'Especialidades', value: 'especialidades', icon: 'pi pi-tag' },
   { label: 'Pagos', value: 'pagos', icon: 'pi pi-wallet' },
+  { label: 'Capacidad', value: 'capacidad', icon: 'pi pi-sliders-h' },
   { label: 'Políticas', value: 'politicas', icon: 'pi pi-file' }
 ]
 
@@ -550,7 +596,7 @@ const loadAgencia = async () => {
         acepta_transferencia: response.data.acepta_transferencia,
         acepta_efectivo: response.data.acepta_efectivo
       }
-      await Promise.all([loadPoliticas(Number(response.data.id)), loadDatosPago(Number(response.data.id))])
+      await Promise.all([loadPoliticas(Number(response.data.id)), loadDatosPago(Number(response.data.id)), loadCapacidad(Number(response.data.id))])
     } else {
       agencia.value = null
     }
@@ -799,6 +845,74 @@ const savePagos = async () => {
     toast.add({ severity: 'error', summary: 'Error', detail: error.data?.error?.message || 'No se pudo guardar', life: 3000 })
   } finally {
     savingPagos.value = false
+  }
+}
+
+const loadCapacidad = async (idOverride?: number) => {
+  const id = Number(idOverride || agenciaId.value)
+  if (!id) return
+
+  capacidadLoading.value = true
+  try {
+    const response: any = await getAgenciaCapacidad(id)
+    if (response.success) {
+      capacidadForm.value = {
+        max_salidas_por_dia: response.data?.max_salidas_por_dia ?? 5,
+        max_salidas_por_horario: response.data?.max_salidas_por_horario ?? 3
+      }
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudo cargar la capacidad de la agencia',
+      life: 3000
+    })
+  } finally {
+    capacidadLoading.value = false
+  }
+}
+
+const saveCapacidad = async () => {
+  const id = agenciaId.value
+  if (!id) return
+
+  const maxDia = Number(capacidadForm.value.max_salidas_por_dia ?? 0)
+  const maxHorario = Number(capacidadForm.value.max_salidas_por_horario ?? 0)
+
+  if (maxDia < 0 || maxHorario < 0) {
+    toast.add({ severity: 'warn', summary: 'Validacion', detail: 'Los valores no pueden ser negativos', life: 3000 })
+    return
+  }
+
+  if (maxHorario > maxDia) {
+    toast.add({ severity: 'warn', summary: 'Validacion', detail: 'El maximo por horario no puede ser mayor al maximo por dia', life: 3500 })
+    return
+  }
+
+  savingCapacidad.value = true
+  try {
+    const response: any = await updateAgenciaCapacidad(id, {
+      max_salidas_por_dia: maxDia,
+      max_salidas_por_horario: maxHorario
+    })
+
+    if (response.success) {
+      capacidadForm.value = {
+        max_salidas_por_dia: response.data?.max_salidas_por_dia ?? maxDia,
+        max_salidas_por_horario: response.data?.max_salidas_por_horario ?? maxHorario
+      }
+      toast.add({ severity: 'success', summary: 'Guardado', detail: 'Capacidad actualizada', life: 2500 })
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudo guardar la capacidad de la agencia',
+      life: 3000
+    })
+  } finally {
+    savingCapacidad.value = false
   }
 }
 

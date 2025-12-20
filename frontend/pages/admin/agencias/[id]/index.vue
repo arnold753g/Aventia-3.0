@@ -21,7 +21,7 @@
             :icon="tab.icon"
             :severity="activeTab === tab.value ? 'primary' : 'secondary'"
             outlined
-            @click="activeTab = tab.value"
+            @click="selectTab(tab.value)"
           />
         </div>
       </template>
@@ -275,6 +275,42 @@
       </template>
     </Card>
 
+    <Card v-if="activeTab === 'capacidad'" class="mb-4">
+      <template #title>Capacidad operativa</template>
+      <template #content>
+        <div v-if="capacidadLoading" class="space-y-3">
+          <Skeleton height="200px" />
+        </div>
+
+        <div v-else class="space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Maximo salidas por dia</label>
+              <InputNumber v-model="capacidadForm.max_salidas_por_dia" :min="0" :max="1000" class="w-full" />
+              <p class="text-xs text-gray-500 mt-1">Maximo total de salidas que la agencia puede manejar en un dia.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Maximo salidas por horario</label>
+              <InputNumber v-model="capacidadForm.max_salidas_por_horario" :min="0" :max="1000" class="w-full" />
+              <p class="text-xs text-gray-500 mt-1">Limite simultaneo por horario (manana, tarde, todo_dia).</p>
+            </div>
+          </div>
+
+          <Message
+            v-if="(capacidadForm.max_salidas_por_horario ?? 0) > (capacidadForm.max_salidas_por_dia ?? 0)"
+            severity="warn"
+            :closable="false"
+          >
+            El maximo por horario no puede ser mayor al maximo por dia.
+          </Message>
+
+          <div class="flex justify-end">
+            <Button label="Guardar cambios" icon="pi pi-save" :loading="savingCapacidad" @click="saveCapacidad" />
+          </div>
+        </div>
+      </template>
+    </Card>
+
     <Card v-if="activeTab === 'encargado'">
       <template #title>Encargado principal</template>
       <template #content>
@@ -311,7 +347,17 @@ if (!authStore.isAdmin && !authStore.isEncargado) {
 const route = useRoute()
 const id = Number(route.params.id)
 const toast = useToast()
-const { getAgencia, uploadFoto: uploadFotoApi, removeFoto: removeFotoApi, addEspecialidad, removeEspecialidad, updateAgencia, getCategorias } = useAgencias()
+const {
+  getAgencia,
+  uploadFoto: uploadFotoApi,
+  removeFoto: removeFotoApi,
+  addEspecialidad,
+  removeEspecialidad,
+  updateAgencia,
+  getCategorias,
+  getAgenciaCapacidad,
+  updateAgenciaCapacidad
+} = useAgencias()
 
 const agencia = ref<any>(null)
 const categorias = ref<any[]>([])
@@ -319,7 +365,9 @@ const uploading = ref(false)
 const uploadProgress = ref<{ current: number; total: number } | null>(null)
 const addingEspecialidad = ref(false)
 const savingPagos = ref(false)
-const activeTab = ref<'general' | 'fotos' | 'especialidades' | 'pagos' | 'encargado'>('general')
+const capacidadLoading = ref(false)
+const savingCapacidad = ref(false)
+const activeTab = ref<'general' | 'fotos' | 'especialidades' | 'pagos' | 'capacidad' | 'encargado'>('general')
 
 const especialidadForm = ref({
   categoria_id: null as number | null,
@@ -332,13 +380,26 @@ const pagoForm = ref({
   acepta_efectivo: false
 })
 
+const capacidadForm = ref({
+  max_salidas_por_dia: 5 as number | null,
+  max_salidas_por_horario: 3 as number | null
+})
+
 const tabs = [
   { label: 'General', value: 'general', icon: 'pi pi-info-circle' },
   { label: 'Fotos', value: 'fotos', icon: 'pi pi-image' },
   { label: 'Especialidades', value: 'especialidades', icon: 'pi pi-tag' },
   { label: 'Pagos', value: 'pagos', icon: 'pi pi-wallet' },
+  { label: 'Capacidad', value: 'capacidad', icon: 'pi pi-sliders-h' },
   { label: 'Encargado', value: 'encargado', icon: 'pi pi-user' }
 ]
+
+const selectTab = (value: 'general' | 'fotos' | 'especialidades' | 'pagos' | 'capacidad' | 'encargado') => {
+  activeTab.value = value
+  if (value === 'capacidad') {
+    void loadCapacidad()
+  }
+}
 
 const categoriasById = computed(() => {
   const map = new Map<number, any>()
@@ -615,6 +676,67 @@ const savePagos = async () => {
     toast.add({ severity: 'error', summary: 'Error', detail: error.data?.error?.message || 'No se pudo guardar', life: 3000 })
   } finally {
     savingPagos.value = false
+  }
+}
+
+const loadCapacidad = async () => {
+  capacidadLoading.value = true
+  try {
+    const response: any = await getAgenciaCapacidad(id)
+    if (response.success) {
+      capacidadForm.value = {
+        max_salidas_por_dia: response.data?.max_salidas_por_dia ?? 5,
+        max_salidas_por_horario: response.data?.max_salidas_por_horario ?? 3
+      }
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudo cargar la capacidad',
+      life: 3000
+    })
+  } finally {
+    capacidadLoading.value = false
+  }
+}
+
+const saveCapacidad = async () => {
+  const maxDia = Number(capacidadForm.value.max_salidas_por_dia ?? 0)
+  const maxHorario = Number(capacidadForm.value.max_salidas_por_horario ?? 0)
+
+  if (maxDia < 0 || maxHorario < 0) {
+    toast.add({ severity: 'warn', summary: 'Validacion', detail: 'Los valores no pueden ser negativos', life: 3000 })
+    return
+  }
+
+  if (maxHorario > maxDia) {
+    toast.add({ severity: 'warn', summary: 'Validacion', detail: 'El maximo por horario no puede ser mayor al maximo por dia', life: 3500 })
+    return
+  }
+
+  savingCapacidad.value = true
+  try {
+    const response: any = await updateAgenciaCapacidad(id, {
+      max_salidas_por_dia: maxDia,
+      max_salidas_por_horario: maxHorario
+    })
+    if (response.success) {
+      capacidadForm.value = {
+        max_salidas_por_dia: response.data?.max_salidas_por_dia ?? maxDia,
+        max_salidas_por_horario: response.data?.max_salidas_por_horario ?? maxHorario
+      }
+      toast.add({ severity: 'success', summary: 'Guardado', detail: 'Capacidad actualizada', life: 2500 })
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.data?.error?.message || 'No se pudo guardar la capacidad',
+      life: 3000
+    })
+  } finally {
+    savingCapacidad.value = false
   }
 }
 

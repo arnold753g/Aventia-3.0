@@ -57,6 +57,17 @@
         </template>
       </Card>
 
+      <!-- Toggle vista -->
+      <div class="mb-6 flex justify-center">
+        <SelectButton v-model="viewMode" :options="viewOptions" optionLabel="label" optionValue="value">
+          <template #option="{ option }">
+            <i :class="option.icon"></i>
+          </template>
+        </SelectButton>
+      </div>
+
+      <!-- Vista Cards -->
+      <div v-if="viewMode === 'cards'">
       <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card v-for="n in 6" :key="n" class="surface-card">
           <template #content>
@@ -68,9 +79,9 @@
         </Card>
       </div>
 
-      <div v-else-if="paquetesFiltrados.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-else-if="paquetes.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card
-          v-for="p in paquetesFiltrados"
+          v-for="p in paquetes"
           :key="p.id"
           class="surface-card overflow-hidden hover:shadow-lg transition-shadow"
         >
@@ -85,7 +96,7 @@
                 v-if="p.frecuencia === 'salida_unica' && p.fecha_salida_fija"
                 class="absolute bottom-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-xs border border-gray-200"
               >
-                <i class="pi pi-calendar mr-1"></i>{{ p.fecha_salida_fija }}
+                <i class="pi pi-calendar mr-1"></i>{{ formatFecha(p.fecha_salida_fija) }}
               </div>
             </div>
           </template>
@@ -141,7 +152,7 @@
         <Button label="Nuevo paquete" icon="pi pi-plus" class="mt-4" @click="navigateTo('/agencia/paquetes/nuevo')" />
       </div>
 
-      <div v-if="pagination.total_pages > 1" class="flex items-center justify-between">
+      <div v-if="pagination.total_pages > 1" class="flex items-center justify-between mt-6">
         <Button
           label="Anterior"
           icon="pi pi-angle-left"
@@ -161,6 +172,113 @@
           @click="goToPage(pagination.page + 1)"
         />
       </div>
+      </div>
+
+      <!-- Vista Tabla -->
+      <Card v-else class="surface-card">
+        <template #content>
+          <DataTable
+            :value="paquetes"
+            :loading="loading"
+            stripedRows
+            paginator
+            :rows="pagination.limit"
+            :first="(pagination.page - 1) * pagination.limit"
+            :totalRecords="pagination.total"
+            :lazy="true"
+            @page="onPage"
+            dataKey="id"
+          >
+            <template #empty>
+              <div class="text-center py-10 text-gray-500">No se encontraron paquetes</div>
+            </template>
+
+            <Column field="id" header="#" style="width: 80px" />
+
+            <Column header="Paquete">
+              <template #body="{ data }">
+                <div class="flex items-center gap-3">
+                  <img
+                    v-if="data.fotos?.length"
+                    :src="getPaqueteCover(data)"
+                    class="w-12 h-12 rounded object-cover"
+                    :alt="data.nombre"
+                  />
+                  <div
+                    v-else
+                    class="w-12 h-12 bg-gradient-to-br from-slate-100 to-emerald-100 rounded flex items-center justify-center"
+                  >
+                    <i class="pi pi-image text-gray-400"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="font-semibold text-gray-900 truncate">{{ data.nombre }}</p>
+                    <p class="text-sm text-gray-500 truncate">{{ data.descripcion || 'Sin descripción' }}</p>
+                  </div>
+                </div>
+              </template>
+            </Column>
+
+            <Column header="Frecuencia" style="width: 170px">
+              <template #body="{ data }">
+                <div class="space-y-1">
+                  <Tag :value="getFrecuenciaLabel(data.frecuencia)" severity="info" />
+                  <div v-if="data.frecuencia === 'salida_unica' && data.fecha_salida_fija" class="text-xs text-gray-500">
+                    <i class="pi pi-calendar mr-1"></i>{{ formatFecha(data.fecha_salida_fija) }}
+                  </div>
+                </div>
+              </template>
+            </Column>
+
+            <Column header="Duración" style="width: 150px">
+              <template #body="{ data }">{{ formatDuracion(data) }}</template>
+            </Column>
+
+            <Column header="Cupos" style="width: 120px">
+              <template #body="{ data }">
+                <span class="text-sm text-gray-700">{{ data.cupo_minimo }}-{{ data.cupo_maximo }}</span>
+              </template>
+            </Column>
+
+            <Column header="Precio" style="width: 170px">
+              <template #body="{ data }">
+                <div>
+                  <p class="font-semibold text-gray-900">Bs. {{ formatNumber(data.precio_base_nacionales) }}</p>
+                  <p v-if="Number(data.precio_adicional_extranjeros || 0) > 0" class="text-xs text-gray-500">
+                    +Bs. {{ formatNumber(data.precio_adicional_extranjeros) }} extranjeros
+                  </p>
+                </div>
+              </template>
+            </Column>
+
+            <Column header="Estado" style="width: 140px">
+              <template #body="{ data }">
+                <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
+              </template>
+            </Column>
+
+            <Column header="Acciones" style="width: 170px">
+              <template #body="{ data }">
+                <div class="flex gap-2 justify-end">
+                  <Button
+                    icon="pi pi-pencil"
+                    text
+                    severity="warning"
+                    @click="navigateTo(`/agencia/paquetes/${data.id}`)"
+                    v-tooltip.top="'Gestionar'"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    text
+                    @click="confirmDelete(data)"
+                    v-tooltip.top="'Eliminar'"
+                  />
+                </div>
+              </template>
+            </Column>
+          </DataTable>
+        </template>
+      </Card>
     </div>
 
     <Dialog v-model:visible="showDeleteDialog" header="Confirmar" :modal="true" :style="{ width: '420px' }">
@@ -217,17 +335,17 @@ const frecuenciaOptions = [
   { label: 'Salida única', value: 'salida_unica' }
 ]
 
+const viewMode = ref<'cards' | 'table'>('cards')
+const viewOptions = [
+  { label: 'Cards', value: 'cards', icon: 'pi pi-th-large' },
+  { label: 'Tabla', value: 'table', icon: 'pi pi-list' }
+]
+
 const showDeleteDialog = ref(false)
 const deleting = ref(false)
 const paqueteToDelete = ref<any>(null)
 
 const agenciaId = computed(() => Number(agencia.value?.id || 0))
-
-const paquetesFiltrados = computed(() => {
-  const f = filters.value.frecuencia
-  if (!f) return paquetes.value
-  return (paquetes.value || []).filter((p) => p.frecuencia === f)
-})
 
 const loadAgencia = async () => {
   const response: any = await getMiAgencia()
@@ -249,6 +367,7 @@ const loadPaquetes = async (page = 1) => {
 
     if (filters.value.search.trim()) params.search = filters.value.search.trim()
     if (filters.value.status) params.status = filters.value.status
+    if (filters.value.frecuencia) params.frecuencia = filters.value.frecuencia
 
     const response: any = await getPaquetes(id, params)
     if (response.success) {
@@ -278,6 +397,10 @@ const resetFilters = async () => {
 
 const goToPage = async (page: number) => {
   await loadPaquetes(page)
+}
+
+const onPage = async (event: any) => {
+  await loadPaquetes(event.page + 1)
 }
 
 const confirmDelete = (paquete: any) => {
@@ -359,6 +482,32 @@ const getFrecuenciaLabel = (frecuencia?: string) => {
     salida_unica: 'Salida única'
   }
   return map[frecuencia || ''] || (frecuencia || 'N/D')
+}
+
+const formatFecha = (value?: any) => {
+  if (!value) return ''
+
+  if (value instanceof Date) {
+    const d = String(value.getUTCDate()).padStart(2, '0')
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0')
+    const y = value.getUTCFullYear()
+    return `${d}/${m}/${y}`
+  }
+
+  const raw = String(value)
+  const datePart = raw.split('T')[0].split(' ')[0]
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`
+
+  const parsed = new Date(raw)
+  if (!Number.isNaN(parsed.getTime())) {
+    const d = String(parsed.getUTCDate()).padStart(2, '0')
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, '0')
+    const y = parsed.getUTCFullYear()
+    return `${d}/${m}/${y}`
+  }
+
+  return datePart || raw
 }
 
 const formatDuracion = (p: any) => {

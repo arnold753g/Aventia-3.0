@@ -44,6 +44,8 @@ func main() {
 	authHandler := handlers.NewAuthHandler()
 	usuarioHandler := handlers.NewUsuarioHandler()
 	agenciaHandler := handlers.NewAgenciaHandler()
+	compraHandler := handlers.NewCompraHandler()
+	pagoHandler := handlers.NewPagoHandler()
 
 	auth := api.PathPrefix("/auth").Subrouter()
 	auth.HandleFunc("/register", authHandler.Register).Methods("POST")
@@ -72,6 +74,10 @@ func main() {
 	api.HandleFunc("/agencias/data/dias", agenciaHandler.GetDias).Methods("GET")
 	api.HandleFunc("/agencias/data/encargados", agenciaHandler.GetEncargados).Methods("GET")
 
+	// ========== PAQUETES TURISTICOS (PUBLICO) ==========
+	api.HandleFunc("/paquetes", agenciaHandler.GetPaquetesPublicos).Methods("GET")
+	api.HandleFunc("/paquetes/{id:[0-9]+}", agenciaHandler.GetPaquetePublico).Methods("GET")
+
 	// Rutas protegidas (requieren autenticación)
 	protected.HandleFunc("/agencias/rapida", agenciaHandler.CreateAgenciaRapida).Methods("POST")
 	protected.HandleFunc("/agencias/completa", agenciaHandler.CreateAgenciaCompleta).Methods("POST")
@@ -86,6 +92,11 @@ func main() {
 	protected.HandleFunc("/agencias/{id:[0-9]+}/datos-pago", agenciaHandler.GetAgenciaDatosPago).Methods("GET")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/datos-pago", agenciaHandler.UpdateAgenciaDatosPago).Methods("PUT")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/datos-pago/qr/upload", agenciaHandler.UploadAgenciaDatosPagoQrFoto).Methods("POST")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/capacidad", agenciaHandler.GetAgenciaCapacidad).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/capacidad", agenciaHandler.UpdateAgenciaCapacidad).Methods("PUT")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/ventas/pagos", agenciaHandler.GetAgenciaVentasPagos).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/ventas/salidas", agenciaHandler.GetAgenciaVentasSalidas).Methods("GET")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/ventas/salidas/{salida_id:[0-9]+}/compras", agenciaHandler.GetAgenciaVentasSalidaCompras).Methods("GET")
 
 	// ========== PAQUETES TURISTICOS (Encargado/Admin) ==========
 	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes", agenciaHandler.GetAgenciaPaquetes).Methods("GET")
@@ -113,6 +124,19 @@ func main() {
 	// Salidas habilitadas (edición logística/estado)
 	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/salidas", agenciaHandler.GetPaqueteSalidas).Methods("GET")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/salidas/{salida_id:[0-9]+}", agenciaHandler.UpdatePaqueteSalida).Methods("PUT")
+
+	// ========== COMPRAS DE PAQUETES (Turista) ==========
+	protected.HandleFunc("/compras", compraHandler.CrearCompra).Methods("POST")
+	protected.HandleFunc("/compras/{id:[0-9]+}", compraHandler.ObtenerDetalleCompra).Methods("GET")
+	protected.HandleFunc("/mis-compras", compraHandler.ListarMisCompras).Methods("GET")
+
+	// ========== PAGOS DE COMPRAS ==========
+	protected.HandleFunc("/pagos", pagoHandler.CrearPago).Methods("POST")
+
+	pagosManager := protected.PathPrefix("").Subrouter()
+	pagosManager.Use(middleware.RoleMiddleware("admin", "encargado_agencia"))
+	pagosManager.HandleFunc("/pagos/{id:[0-9]+}/confirmar", pagoHandler.ConfirmarPago).Methods("PUT")
+	pagosManager.HandleFunc("/pagos/{id:[0-9]+}/rechazar", pagoHandler.RechazarPago).Methods("PUT")
 
 	// ========== RUTAS DE ATRACCIONES TURISTICAS ==========
 	atraccionHandler := handlers.NewAtraccionHandler()

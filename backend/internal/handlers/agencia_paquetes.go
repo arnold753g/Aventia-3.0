@@ -175,6 +175,7 @@ func (h *AgenciaHandler) GetAgenciaPaquetes(w http.ResponseWriter, r *http.Reque
 
 	search := strings.TrimSpace(r.URL.Query().Get("search"))
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	frecuencia := strings.TrimSpace(r.URL.Query().Get("frecuencia"))
 	visible := strings.TrimSpace(r.URL.Query().Get("visible_publico"))
 	includeEliminado := strings.TrimSpace(r.URL.Query().Get("include_eliminado")) == "true"
 
@@ -201,6 +202,14 @@ func (h *AgenciaHandler) GetAgenciaPaquetes(w http.ResponseWriter, r *http.Reque
 
 	if status != "" {
 		query = query.Where("status = ?", status)
+	}
+
+	if frecuencia != "" {
+		if !allowedPaqueteFrecuencias[frecuencia] {
+			utils.ErrorResponse(w, "VALIDATION_ERROR", "Frecuencia invÃ¡lida", nil, http.StatusBadRequest)
+			return
+		}
+		query = query.Where("frecuencia = ?", frecuencia)
 	}
 
 	if visible != "" {

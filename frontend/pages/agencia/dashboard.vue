@@ -64,6 +64,27 @@
           </div>
         </template>
       </Card>
+
+      <Card class="surface-card md:col-span-2">
+        <template #title>
+          <div class="flex items-center gap-2">
+            <i class="pi pi-shopping-bag" style="color: var(--color-primary);"></i>
+            <span>Ventas de paquetes</span>
+          </div>
+        </template>
+        <template #content>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div class="text-sm text-gray-600">
+                Revisa los pagos registrados por turistas y confirma o rechaza cada pago.
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <Button label="Ver ventas" icon="pi pi-eye" outlined @click="navigateTo('/agencia/ventas')" />
+            </div>
+          </div>
+        </template>
+      </Card>
     </div>
 
     <Toast />

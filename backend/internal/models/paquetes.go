@@ -8,6 +8,8 @@ type PaqueteTuristico struct {
 	ID        uint `gorm:"primaryKey" json:"id"`
 	AgenciaID uint `gorm:"not null;index" json:"agencia_id"`
 
+	Agencia *AgenciaTurismo `gorm:"foreignKey:AgenciaID" json:"agencia,omitempty"`
+
 	// Información básica
 	Nombre      string  `gorm:"size:255;not null" json:"nombre"`
 	Descripcion *string `gorm:"type:text" json:"descripcion"`
@@ -56,6 +58,10 @@ type PaqueteTuristico struct {
 	Itinerario  []PaqueteItinerario       `gorm:"foreignKey:PaqueteID" json:"itinerario,omitempty"`
 	Atracciones []PaqueteAtraccion        `gorm:"foreignKey:PaqueteID" json:"atracciones,omitempty"`
 	Salidas     []PaqueteSalidaHabilitada `gorm:"foreignKey:PaqueteID" json:"salidas,omitempty"`
+
+	// Campos calculados (no persistidos)
+	Politicas        *PaquetePolitica  `gorm:"-" json:"politicas,omitempty"`
+	AgenciaDatosPago *AgenciaDatosPago `gorm:"-" json:"agencia_datos_pago,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

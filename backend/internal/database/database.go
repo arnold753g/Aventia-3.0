@@ -39,6 +39,12 @@ func Connect(cfg *config.Config) error {
 		log.Println("Continuing without migrations - using existing schema")
 	}
 
+	// Bootstrap de funciones SQL requeridas por el negocio.
+	if err := ApplySQLBootstrap(DB); err != nil {
+		log.Printf("Warning: SQL bootstrap failed: %v", err)
+		log.Println("Continuing - some features may not work until the DB is prepared")
+	}
+
 	// Ejecutar seeds de datos base
 	if err := runSeeds(); err != nil {
 		log.Printf("Warning during seeds: %v", err)
@@ -71,8 +77,11 @@ func runMigrations() error {
 		&models.AgenciaTurismo{},
 		&models.PaquetePolitica{},
 		&models.AgenciaDatosPago{},
+		&models.AgenciaCapacidad{},
 		&models.PaqueteTuristico{},
 		&models.PaqueteSalidaHabilitada{},
+		&models.CompraPaquete{},
+		&models.PagoCompra{},
 		&models.PaqueteItinerario{},
 		&models.PaqueteFoto{},
 		&models.PaqueteAtraccion{},

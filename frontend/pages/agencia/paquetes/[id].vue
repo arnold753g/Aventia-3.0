@@ -10,7 +10,7 @@
           <Tag :value="getFrecuenciaLabel(paquete.frecuencia)" severity="info" />
           <Tag
             v-if="paquete.frecuencia === 'salida_unica' && paquete.fecha_salida_fija"
-            :value="paquete.fecha_salida_fija"
+            :value="formatFecha(paquete.fecha_salida_fija)"
             severity="secondary"
             icon="pi pi-calendar"
           />
@@ -432,7 +432,11 @@
             </Message>
 
             <DataTable :value="paquete.salidas || []" responsiveLayout="scroll">
-              <Column field="fecha_salida" header="Fecha" style="width: 130px" />
+              <Column header="Fecha" style="width: 130px">
+                <template #body="{ data }">
+                  <span class="text-sm text-gray-700">{{ formatFecha(data.fecha_salida) }}</span>
+                </template>
+              </Column>
               <Column field="tipo_salida" header="Tipo" style="width: 130px" />
               <Column header="Cupos">
                 <template #body="{ data }">
@@ -620,7 +624,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-            <InputText :modelValue="selectedSalida?.fecha_salida || ''" class="w-full" disabled />
+            <InputText :modelValue="formatFecha(selectedSalida?.fecha_salida) || ''" class="w-full" disabled />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
@@ -745,7 +749,8 @@ const paqueteId = computed(() => Number(route.params.id || 0))
 
 const parseDate = (value?: string | null) => {
   if (!value) return null
-  const date = new Date(`${value}T00:00:00`)
+  const raw = String(value).split('T')[0].trim()
+  const date = new Date(`${raw}T00:00:00`)
   return Number.isNaN(date.getTime()) ? null : date
 }
 
@@ -754,6 +759,32 @@ const formatDate = (date: Date) => {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+const formatFecha = (value?: any) => {
+  if (!value) return ''
+
+  if (value instanceof Date) {
+    const d = String(value.getUTCDate()).padStart(2, '0')
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0')
+    const y = value.getUTCFullYear()
+    return `${d}/${m}/${y}`
+  }
+
+  const raw = String(value)
+  const datePart = raw.split('T')[0].split(' ')[0]
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`
+
+  const parsed = new Date(raw)
+  if (!Number.isNaN(parsed.getTime())) {
+    const d = String(parsed.getUTCDate()).padStart(2, '0')
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, '0')
+    const y = parsed.getUTCFullYear()
+    return `${d}/${m}/${y}`
+  }
+
+  return datePart || raw
 }
 
 const generalForm = ref({

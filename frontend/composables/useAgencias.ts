@@ -135,6 +135,27 @@ export const useAgencias = () => {
     })
   }
 
+  // Capacidad operativa (salidas simultáneas)
+  const getAgenciaCapacidad = async (agenciaId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/capacidad`, {
+      headers: authHeader()
+    })
+  }
+
+  const updateAgenciaCapacidad = async (
+    agenciaId: number,
+    data: {
+      max_salidas_por_dia?: number
+      max_salidas_por_horario?: number
+    }
+  ) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/capacidad`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
   // Eliminar agencia
   const deleteAgencia = async (id: number) => {
     return $fetch(`${apiBase}/admin/agencias/${id}`, {
@@ -238,6 +259,8 @@ export const useAgencias = () => {
     getAgenciaDatosPago,
     updateAgenciaDatosPago,
     uploadQrPago,
+    getAgenciaCapacidad,
+    updateAgenciaCapacidad,
     deleteAgencia,
     updateStatus,
     uploadFoto,

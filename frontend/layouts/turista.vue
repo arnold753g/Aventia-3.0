@@ -29,6 +29,24 @@
               </NuxtLink>
 
               <NuxtLink
+                to="/turista/paquetes"
+                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                active-class="bg-blue-50 text-blue-700 font-semibold"
+              >
+                <i class="pi pi-briefcase mr-2"></i>
+                Paquetes
+              </NuxtLink>
+
+              <NuxtLink
+                to="/turista/mis-compras"
+                class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                active-class="bg-blue-50 text-blue-700 font-semibold"
+              >
+                <i class="pi pi-shopping-cart mr-2"></i>
+                Mis compras
+              </NuxtLink>
+
+              <NuxtLink
                 to="/turista/perfil"
                 class="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                 active-class="bg-blue-50 text-blue-700 font-semibold"
@@ -98,4 +116,3 @@ const handleLogout = () => {
   navigateTo('/login')
 }
 </script>
-

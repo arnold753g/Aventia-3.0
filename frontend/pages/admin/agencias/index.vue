@@ -146,7 +146,7 @@
           <template #content>
             <div class="flex justify-between items-start">
               <div>
-                
+
                 <h3 class="text-xl font-semibold text-gray-900">{{ agencia.nombre_comercial }}</h3>
                 <p class="text-sm text-gray-600">{{ agencia.direccion }}</p>
                 <p class="text-sm text-gray-600 mt-1">

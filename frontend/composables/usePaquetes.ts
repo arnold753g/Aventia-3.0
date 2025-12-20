@@ -14,6 +14,7 @@ export const usePaquetes = () => {
       limit?: number
       search?: string
       status?: string
+      frecuencia?: string
       visible_publico?: string
       include_eliminado?: string
       sort_by?: string
@@ -170,4 +171,3 @@ export const usePaquetes = () => {
     updatePaqueteSalida
   }
 }
-

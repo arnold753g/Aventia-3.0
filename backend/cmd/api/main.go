@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"andaria-backend/internal/config"
 	"andaria-backend/internal/database"
 	"andaria-backend/internal/handlers"
 	"andaria-backend/internal/middleware"
+	"andaria-backend/internal/services"
 	"andaria-backend/pkg/utils"
 
 	"github.com/gorilla/mux"
@@ -27,6 +29,14 @@ func main() {
 	if err := database.Connect(cfg); err != nil {
 		log.Fatal("Error connecting to database:", err)
 	}
+
+	// Iniciar worker de expiración de compras
+	minutosExpiracion, _ := strconv.Atoi(cfg.CompraExpiracionMinutos)
+	if minutosExpiracion < 1 {
+		minutosExpiracion = 30
+	}
+	services.StartExpirationWorker(database.GetDB(), minutosExpiracion, 5)
+	log.Printf("OK. Worker de expiración de compras iniciado (%d minutos)", minutosExpiracion)
 
 	// Crear router
 	router := mux.NewRouter()
@@ -77,6 +87,8 @@ func main() {
 	// ========== PAQUETES TURISTICOS (PUBLICO) ==========
 	api.HandleFunc("/paquetes", agenciaHandler.GetPaquetesPublicos).Methods("GET")
 	api.HandleFunc("/paquetes/{id:[0-9]+}", agenciaHandler.GetPaquetePublico).Methods("GET")
+	api.HandleFunc("/paquetes/{id:[0-9]+}/salidas", agenciaHandler.GetPaqueteSalidasPublicas).Methods("GET")
+	api.HandleFunc("/salidas-confirmadas", agenciaHandler.GetSalidasConfirmadasPublicas).Methods("GET")
 
 	// Rutas protegidas (requieren autenticación)
 	protected.HandleFunc("/agencias/rapida", agenciaHandler.CreateAgenciaRapida).Methods("POST")
@@ -124,10 +136,12 @@ func main() {
 	// Salidas habilitadas (edición logística/estado)
 	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/salidas", agenciaHandler.GetPaqueteSalidas).Methods("GET")
 	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/salidas/{salida_id:[0-9]+}", agenciaHandler.UpdatePaqueteSalida).Methods("PUT")
+	protected.HandleFunc("/agencias/{id:[0-9]+}/paquetes/{paquete_id:[0-9]+}/salidas/{salida_id:[0-9]+}/activar", agenciaHandler.ActivarSalida).Methods("POST")
 
 	// ========== COMPRAS DE PAQUETES (Turista) ==========
 	protected.HandleFunc("/compras", compraHandler.CrearCompra).Methods("POST")
 	protected.HandleFunc("/compras/{id:[0-9]+}", compraHandler.ObtenerDetalleCompra).Methods("GET")
+	protected.HandleFunc("/compras/{id:[0-9]+}/cancelar", compraHandler.CancelarCompra).Methods("POST")
 	protected.HandleFunc("/mis-compras", compraHandler.ListarMisCompras).Methods("GET")
 
 	// ========== PAGOS DE COMPRAS ==========

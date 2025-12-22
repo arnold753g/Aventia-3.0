@@ -19,6 +19,8 @@ type Config struct {
     JWTExpiration        string
     JWTRefreshExpiration string
     AppEnv               string
+    // Configuración de expiración de compras (en minutos)
+    CompraExpiracionMinutos string
 }
 
 func LoadConfig() *Config {
@@ -40,6 +42,7 @@ func LoadConfig() *Config {
         JWTExpiration:        getEnv("JWT_EXPIRATION", "24h"),
         JWTRefreshExpiration: getEnv("JWT_REFRESH_EXPIRATION", "168h"),
         AppEnv:               getEnv("APP_ENV", "development"),
+        CompraExpiracionMinutos: getEnv("COMPRA_EXPIRACION_MINUTOS", "30"),
     }
 }
 

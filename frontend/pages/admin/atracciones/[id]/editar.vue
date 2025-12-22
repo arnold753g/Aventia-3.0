@@ -207,6 +207,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { zodResolver } from '@primevue/forms/resolvers/zod'
+import { extractHora } from '~/utils/formatters-atraccion'
 import { updateAtraccionSchema } from '~/utils/validations/atraccion'
 import { useAuthStore } from '~/stores/auth'
 
@@ -315,8 +316,8 @@ const loadAtraccion = async () => {
         direccion: a.direccion,
         latitud: a.latitud,
         longitud: a.longitud,
-        horario_apertura: a.horario_apertura ? a.horario_apertura.substring(0, 5) : '',
-        horario_cierre: a.horario_cierre ? a.horario_cierre.substring(0, 5) : '',
+        horario_apertura: extractHora(a.horario_apertura),
+        horario_cierre: extractHora(a.horario_cierre),
         precio_entrada: a.precio_entrada,
         nivel_dificultad: a.nivel_dificultad || '',
         requiere_agencia: !!a.requiere_agencia,

@@ -143,6 +143,30 @@
           <Textarea v-model="notasTurista" class="w-full" rows="3" autoResize />
         </div>
 
+        <Message v-if="tipoCompra === 'compartido' && checkingSalida" severity="info" :closable="false">
+          Verificando salidas habilitadas para la fecha seleccionada...
+        </Message>
+
+        <Message v-else-if="tipoCompra === 'compartido' && salidaCheckError" severity="warn" :closable="false">
+          {{ salidaCheckError }}
+        </Message>
+
+        <Message
+          v-else-if="tipoCompra === 'compartido' && salidaExists === false && !cumpleCupoMinimo"
+          severity="warn"
+          :closable="false"
+        >
+          Para habilitar la primera salida en esta fecha debes registrar al menos {{ cupoMinimo }} participantes.
+        </Message>
+
+        <Message
+          v-else-if="tipoCompra === 'compartido' && salidaExists === false && cumpleCupoMinimo"
+          severity="info"
+          :closable="false"
+        >
+          No existe una salida habilitada para esta fecha. Se creará una nueva salida al registrar la compra.
+        </Message>
+
         <Divider />
 
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
@@ -212,6 +236,7 @@ const props = defineProps<{
 
 const toast = useToast()
 const { crearCompra } = useCompra()
+const { getSalidas } = usePaquetesTuristicos()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -324,16 +349,85 @@ const subtotal = computed(() => precioUnitario.value * personasPagan.value)
 const recargoPrivado = computed(() => (tipoCompra.value === 'privado' ? subtotal.value * (recargoPrivadoPct.value / 100) : 0))
 const totalEstimado = computed(() => subtotal.value + recargoPrivado.value)
 
+const cupoMinimo = computed(() => {
+  const n = Number(props.paquete?.cupo_minimo || 1)
+  if (!Number.isFinite(n) || n < 1) return 1
+  return Math.floor(n)
+})
+
+const salidaExists = ref<boolean | null>(null)
+const checkingSalida = ref(false)
+const salidaCheckError = ref<string | null>(null)
+
+const requiereCupoMinimo = computed(() => tipoCompra.value === 'compartido' && salidaExists.value === false)
+const cumpleCupoMinimo = computed(() => totalPersonas.value >= cupoMinimo.value)
+
 const disableSubmit = computed(() => {
   if (loading.value) return true
   if (!fecha.value) return true
   if ((cantidadAdultos.value || 0) < 1) return true
   if (tieneNinos.value === 'si' && (ninosSinEdad.value > 0 || ninosEdadInvalida.value > 0)) return true
+  if (tipoCompra.value === 'compartido' && checkingSalida.value) return true
+  if (requiereCupoMinimo.value && !cumpleCupoMinimo.value) return true
   return false
 })
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const toDateOnly = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+
+let salidaCheckSeq = 0
+const checkSalidaHabilitada = async () => {
+  salidaCheckError.value = null
+
+  if (tipoCompra.value !== 'compartido') {
+    salidaExists.value = null
+    checkingSalida.value = false
+    return
+  }
+
+  if (!fecha.value) {
+    salidaExists.value = null
+    checkingSalida.value = false
+    return
+  }
+
+  const paqueteId = Number(props.paquete?.id)
+  if (!Number.isFinite(paqueteId) || paqueteId <= 0) {
+    salidaExists.value = null
+    checkingSalida.value = false
+    return
+  }
+
+  const seq = ++salidaCheckSeq
+  checkingSalida.value = true
+  salidaExists.value = null
+
+  try {
+    const response: any = await getSalidas(paqueteId, { fecha: toDateOnly(fecha.value), tipo: 'compartido' })
+    if (seq !== salidaCheckSeq) return
+
+    if (response?.success) {
+      const salidas = response.data?.salidas
+      salidaExists.value = Array.isArray(salidas) && salidas.length > 0
+      return
+    }
+
+    salidaCheckError.value = response?.error?.message || 'No se pudo verificar salidas habilitadas'
+  } catch (err: any) {
+    if (seq !== salidaCheckSeq) return
+    salidaCheckError.value = err?.data?.error?.message || err?.message || 'No se pudo verificar salidas habilitadas'
+  } finally {
+    if (seq === salidaCheckSeq) checkingSalida.value = false
+  }
+}
+
+watch(
+  () => [fecha.value ? toDateOnly(fecha.value) : null, tipoCompra.value],
+  () => {
+    void checkSalidaHabilitada()
+  },
+  { immediate: true }
+)
 
 const formatDateBO = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`
 
@@ -369,6 +463,18 @@ const submit = async () => {
   if (totalPersonas.value < 1) {
     error.value = 'Debe registrar al menos 1 participante'
     return
+  }
+
+  if (tipoCompra.value === 'compartido') {
+    if (checkingSalida.value) {
+      error.value = 'Espere un momento mientras verificamos las salidas disponibles'
+      return
+    }
+
+    if (salidaExists.value === false && !cumpleCupoMinimo.value) {
+      error.value = `Para habilitar la primera salida en esta fecha debe registrar al menos ${cupoMinimo.value} participantes`
+      return
+    }
   }
 
   loading.value = true

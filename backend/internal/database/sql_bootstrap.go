@@ -15,20 +15,19 @@ func ApplySQLBootstrap(db *gorm.DB) error {
 		return err
 	}
 
+	if err := ensureTriggerPagoConfirmado(db); err != nil {
+		return err
+	}
+
+	if err := ensureTriggerPagoRechazado(db); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-const procesarCompraPaqueteSignature = "public.procesar_compra_paquete(integer, integer, date, text, boolean, integer, integer, integer, boolean, text, text)"
-
 func ensureProcesarCompraPaquete(db *gorm.DB) error {
-	var exists bool
-	if err := db.Raw(`SELECT to_regprocedure(?::text) IS NOT NULL`, procesarCompraPaqueteSignature).Scan(&exists).Error; err != nil {
-		return fmt.Errorf("failed to check procesar_compra_paquete existence: %w", err)
-	}
-	if exists {
-		return nil
-	}
-
+	// Always replace to keep the function compatible with restored schemas.
 	if err := db.Exec(sqlProcesarCompraPaquete).Error; err != nil {
 		return fmt.Errorf("procesar_compra_paquete bootstrap failed: %w", err)
 	}
@@ -173,7 +172,7 @@ BEGIN
     END IF;
 
     -- Validar fecha seleccionada
-    IF p_fecha_seleccionada < (CURRENT_DATE + COALESCE(v_paquete.dias_previos_compra, 1)) THEN
+    IF p_fecha_seleccionada < (CURRENT_DATE + COALESCE(v_paquete.dias_previos_compra, 1)::int) THEN
         RETURN QUERY SELECT 0, 0, 0, 'La fecha seleccionada no cumple los días previos de compra', FALSE;
         RETURN;
     END IF;
@@ -227,6 +226,21 @@ BEGIN
 
     -- Buscar/crear salida
     IF p_tipo_compra = 'compartido' THEN
+        -- Si no existe una salida previa para esa fecha, exigir cupo mínimo para habilitar la primera compra compartida.
+        IF NOT EXISTS (
+            SELECT 1
+            FROM paquete_salidas_habilitadas s0
+            WHERE s0.paquete_id = p_paquete_id
+              AND s0.fecha_salida = p_fecha_seleccionada
+              AND s0.tipo_salida = 'compartido'
+              AND s0.estado IN ('pendiente', 'activa')
+        ) THEN
+            IF v_total_participantes < v_paquete.cupo_minimo THEN
+                RETURN QUERY SELECT 0, 0, 0, format('Para habilitar la primera salida en esta fecha debe registrar al menos %s participantes', v_paquete.cupo_minimo), FALSE;
+                RETURN;
+            END IF;
+        END IF;
+
         SELECT s.id
         INTO v_salida_id
         FROM paquete_salidas_habilitadas s
@@ -429,4 +443,156 @@ BEGIN
     RETURN;
 END;
 $$;
+`
+
+// Trigger para confirmación de pago
+const triggerPagoConfirmadoSignature = "public.fn_on_pago_confirmado()"
+
+func ensureTriggerPagoConfirmado(db *gorm.DB) error {
+	var exists bool
+	if err := db.Raw(`SELECT to_regprocedure(?::text) IS NOT NULL`, triggerPagoConfirmadoSignature).Scan(&exists).Error; err != nil {
+		return fmt.Errorf("failed to check fn_on_pago_confirmado existence: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	if err := db.Exec(sqlTriggerPagoConfirmado).Error; err != nil {
+		return fmt.Errorf("trigger pago confirmado bootstrap failed: %w", err)
+	}
+
+	return nil
+}
+
+const sqlTriggerPagoConfirmado = `
+-- Función trigger para cuando un pago es confirmado
+CREATE OR REPLACE FUNCTION public.fn_on_pago_confirmado()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_compra RECORD;
+BEGIN
+    -- Solo ejecutar cuando el estado cambia a 'confirmado'
+    IF NEW.estado = 'confirmado' AND OLD.estado = 'pendiente' THEN
+        -- Obtener datos de la compra
+        SELECT id, salida_id, total_participantes, status
+        INTO v_compra
+        FROM compras_paquetes
+        WHERE id = NEW.compra_id;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Compra no encontrada: %', NEW.compra_id;
+        END IF;
+
+        -- Solo procesar si la compra está pendiente de confirmación
+        IF v_compra.status = 'pendiente_confirmacion' THEN
+            -- Actualizar estado de la compra
+            UPDATE compras_paquetes
+            SET status = 'confirmada',
+                fecha_confirmacion = NOW(),
+                updated_at = NOW()
+            WHERE id = NEW.compra_id;
+
+            -- Mover cupos de reservados a confirmados
+            IF v_compra.salida_id IS NOT NULL THEN
+                UPDATE paquete_salidas_habilitadas
+                SET cupos_reservados = GREATEST(0, cupos_reservados - v_compra.total_participantes),
+                    cupos_confirmados = cupos_confirmados + v_compra.total_participantes,
+                    updated_at = NOW()
+                WHERE id = v_compra.salida_id;
+            END IF;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Crear el trigger si no existe
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trg_pago_confirmado'
+    ) THEN
+        CREATE TRIGGER trg_pago_confirmado
+            AFTER UPDATE ON pagos_compras
+            FOR EACH ROW
+            EXECUTE FUNCTION fn_on_pago_confirmado();
+    END IF;
+END $$;
+`
+
+// Trigger para rechazo de pago
+const triggerPagoRechazadoSignature = "public.fn_on_pago_rechazado()"
+
+func ensureTriggerPagoRechazado(db *gorm.DB) error {
+	var exists bool
+	if err := db.Raw(`SELECT to_regprocedure(?::text) IS NOT NULL`, triggerPagoRechazadoSignature).Scan(&exists).Error; err != nil {
+		return fmt.Errorf("failed to check fn_on_pago_rechazado existence: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	if err := db.Exec(sqlTriggerPagoRechazado).Error; err != nil {
+		return fmt.Errorf("trigger pago rechazado bootstrap failed: %w", err)
+	}
+
+	return nil
+}
+
+const sqlTriggerPagoRechazado = `
+-- Función trigger para cuando un pago es rechazado
+CREATE OR REPLACE FUNCTION public.fn_on_pago_rechazado()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_compra RECORD;
+BEGIN
+    -- Solo ejecutar cuando el estado cambia a 'rechazado'
+    IF NEW.estado = 'rechazado' AND OLD.estado = 'pendiente' THEN
+        -- Obtener datos de la compra
+        SELECT id, salida_id, total_participantes, status
+        INTO v_compra
+        FROM compras_paquetes
+        WHERE id = NEW.compra_id;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Compra no encontrada: %', NEW.compra_id;
+        END IF;
+
+        -- Solo procesar si la compra está pendiente
+        IF v_compra.status = 'pendiente_confirmacion' THEN
+            -- Marcar compra como rechazada
+            UPDATE compras_paquetes
+            SET status = 'rechazada',
+                razon_rechazo = NEW.razon_rechazo,
+                fecha_rechazo = NOW(),
+                updated_at = NOW()
+            WHERE id = NEW.compra_id;
+
+            -- Liberar cupos reservados
+            IF v_compra.salida_id IS NOT NULL THEN
+                UPDATE paquete_salidas_habilitadas
+                SET cupos_reservados = GREATEST(0, cupos_reservados - v_compra.total_participantes),
+                    updated_at = NOW()
+                WHERE id = v_compra.salida_id;
+            END IF;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Crear el trigger si no existe
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trg_pago_rechazado'
+    ) THEN
+        CREATE TRIGGER trg_pago_rechazado
+            AFTER UPDATE ON pagos_compras
+            FOR EACH ROW
+            EXECUTE FUNCTION fn_on_pago_rechazado();
+    END IF;
+END $$;
 `

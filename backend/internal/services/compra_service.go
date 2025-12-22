@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"andaria-backend/internal/database"
@@ -29,6 +30,52 @@ func (s *CompraService) CrearCompra(turistaID uint, req *models.CrearCompraReque
 	fecha, err := time.Parse("2006-01-02", req.FechaSeleccionada)
 	if err != nil {
 		return nil, fmt.Errorf("fecha_seleccionada inválida (use YYYY-MM-DD)")
+	}
+
+	ninosPagan := req.CantidadNinosPagan
+	if ninosPagan < 0 {
+		ninosPagan = 0
+	}
+	ninosGratis := req.CantidadNinosGratis
+	if ninosGratis < 0 {
+		ninosGratis = 0
+	}
+	totalParticipantes := req.CantidadAdultos + ninosPagan + ninosGratis
+
+	// Si no existe una salida habilitada para la fecha, exigir cupo mínimo para crear la primera salida compartida.
+	if req.TipoCompra == "compartido" {
+		fechaStr := fecha.Format("2006-01-02")
+
+		var salidaExiste bool
+		if err := s.db.Raw(`
+			SELECT EXISTS (
+				SELECT 1
+				FROM paquete_salidas_habilitadas
+				WHERE paquete_id = ?
+				  AND fecha_salida = ?
+				  AND tipo_salida = 'compartido'
+				  AND estado IN ('pendiente', 'activa')
+			)
+		`, req.PaqueteID, fechaStr).Scan(&salidaExiste).Error; err != nil {
+			return nil, err
+		}
+
+		if !salidaExiste {
+			var paquete models.PaqueteTuristico
+			if err := s.db.Select("cupo_minimo").First(&paquete, req.PaqueteID).Error; err != nil {
+				if !errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, err
+				}
+			} else {
+				min := paquete.CupoMinimo
+				if min < 1 {
+					min = 1
+				}
+				if totalParticipantes < min {
+					return nil, fmt.Errorf("para habilitar la primera salida en esta fecha debe registrar al menos %d participantes", min)
+				}
+			}
+		}
 	}
 
 	query := `SELECT * FROM public.procesar_compra_paquete(?::int, ?::int, ?::date, ?::text, ?::boolean, ?::int, ?::int, ?::int, ?::boolean, ?::text, ?::text)`
@@ -140,6 +187,7 @@ func (s *CompraService) ObtenerDetalleCompra(compraID uint, turistaID uint) (*mo
 			MetodoPago:        p.MetodoPago,
 			Monto:             p.Monto,
 			Estado:            p.Estado,
+			ComprobanteFoto:   p.ComprobanteFoto,
 			FechaConfirmacion: p.FechaConfirmacion,
 		}
 	}
@@ -243,4 +291,177 @@ func (s *CompraService) ListarComprasTurista(turistaID uint, page int, pageSize 
 	}
 
 	return out, total, nil
+}
+
+// ExpirarComprasPendientes expira compras sin pago después de X minutos y libera cupos
+func (s *CompraService) ExpirarComprasPendientes(minutosLimite int) (int64, error) {
+	if minutosLimite < 1 {
+		minutosLimite = 30 // default 30 minutos
+	}
+
+	fechaLimite := time.Now().Add(-time.Duration(minutosLimite) * time.Minute)
+
+	// Buscar compras pendientes que no tienen ningún pago pendiente/confirmado
+	// y fueron creadas hace más de X minutos
+	var comprasExpirar []models.CompraPaquete
+	err := s.db.
+		Where("status = ?", "pendiente_confirmacion").
+		Where("created_at < ?", fechaLimite).
+		Where("id NOT IN (?)",
+			s.db.Table("pagos_compras").
+				Select("compra_id").
+				Where("estado IN ('pendiente', 'confirmado')"),
+		).
+		Find(&comprasExpirar).Error
+
+	if err != nil {
+		return 0, fmt.Errorf("error buscando compras a expirar: %w", err)
+	}
+
+	if len(comprasExpirar) == 0 {
+		return 0, nil
+	}
+
+	var expiradas int64 = 0
+
+	for _, compra := range comprasExpirar {
+		err := s.db.Transaction(func(tx *gorm.DB) error {
+			// Liberar cupos reservados
+			if compra.SalidaID != nil {
+				if err := tx.Exec(`
+					UPDATE paquete_salidas_habilitadas
+					SET cupos_reservados = GREATEST(0, cupos_reservados - ?),
+					    updated_at = NOW()
+					WHERE id = ?
+				`, compra.TotalParticipantes, *compra.SalidaID).Error; err != nil {
+					return err
+				}
+			}
+
+			// Marcar compra como expirada
+			if err := tx.Model(&compra).Updates(map[string]interface{}{
+				"status":       "expirada",
+				"razon_rechazo": "Compra expirada por falta de pago",
+				"updated_at":  time.Now(),
+			}).Error; err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			log.Printf("Error expirando compra %d: %v", compra.ID, err)
+			continue
+		}
+
+		expiradas++
+	}
+
+	return expiradas, nil
+}
+
+// CancelarCompra cancela una compra y libera los cupos
+func (s *CompraService) CancelarCompra(compraID uint, turistaID uint, razon string) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var compra models.CompraPaquete
+		if err := tx.Where("id = ? AND turista_id = ?", compraID, turistaID).First(&compra).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("compra no encontrada")
+			}
+			return err
+		}
+
+		// Validar que se puede cancelar
+		if compra.Status == "cancelada" || compra.Status == "expirada" {
+			return errors.New("la compra ya está cancelada o expirada")
+		}
+
+		if compra.Status == "confirmada" {
+			return errors.New("no se puede cancelar una compra confirmada, contacte a la agencia")
+		}
+
+		// Solo se puede cancelar si está pendiente_confirmacion
+		if compra.Status != "pendiente_confirmacion" {
+			return fmt.Errorf("no se puede cancelar una compra con estado: %s", compra.Status)
+		}
+
+		// Verificar si hay pagos pendientes
+		var pagosPendientes int64
+		if err := tx.Model(&models.PagoCompra{}).
+			Where("compra_id = ? AND estado = ?", compraID, "pendiente").
+			Count(&pagosPendientes).Error; err != nil {
+			return err
+		}
+
+		if pagosPendientes > 0 {
+			return errors.New("no se puede cancelar, hay pagos pendientes de revisión")
+		}
+
+		// Liberar cupos reservados
+		if compra.SalidaID != nil {
+			if err := tx.Exec(`
+				UPDATE paquete_salidas_habilitadas
+				SET cupos_reservados = GREATEST(0, cupos_reservados - ?),
+				    updated_at = NOW()
+				WHERE id = ?
+			`, compra.TotalParticipantes, *compra.SalidaID).Error; err != nil {
+				return err
+			}
+		}
+
+		// Marcar compra como cancelada
+		now := time.Now()
+		razonFinal := "Cancelada por el turista"
+		if razon != "" {
+			razonFinal = razon
+		}
+
+		if err := tx.Model(&compra).Updates(map[string]interface{}{
+			"status":        "cancelada",
+			"razon_rechazo": razonFinal,
+			"fecha_rechazo": now,
+			"updated_at":    now,
+		}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// StartExpirationWorker inicia un worker que expira compras periódicamente
+func StartExpirationWorker(db *gorm.DB, minutosExpiracion int, intervaloChequeoMinutos int) {
+	if intervaloChequeoMinutos < 1 {
+		intervaloChequeoMinutos = 5 // chequear cada 5 minutos por defecto
+	}
+
+	service := NewCompraService(db)
+
+	go func() {
+		ticker := time.NewTicker(time.Duration(intervaloChequeoMinutos) * time.Minute)
+		defer ticker.Stop()
+
+		log.Printf("Worker de expiración iniciado: expira compras después de %d minutos, chequea cada %d minutos",
+			minutosExpiracion, intervaloChequeoMinutos)
+
+		// Ejecutar inmediatamente al iniciar
+		expiradas, err := service.ExpirarComprasPendientes(minutosExpiracion)
+		if err != nil {
+			log.Printf("Error en expiración inicial: %v", err)
+		} else if expiradas > 0 {
+			log.Printf("Expiración inicial: %d compras expiradas", expiradas)
+		}
+
+		for range ticker.C {
+			expiradas, err := service.ExpirarComprasPendientes(minutosExpiracion)
+			if err != nil {
+				log.Printf("Error en worker de expiración: %v", err)
+				continue
+			}
+			if expiradas > 0 {
+				log.Printf("Worker de expiración: %d compras expiradas", expiradas)
+			}
+		}
+	}()
 }

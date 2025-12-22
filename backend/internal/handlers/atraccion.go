@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"andaria-backend/internal/database"
 	"andaria-backend/internal/models"
@@ -22,6 +23,31 @@ func NewAtraccionHandler() *AtraccionHandler {
 	return &AtraccionHandler{
 		validate: validator.New(),
 	}
+}
+
+func normalizeHorarioToTimestamp(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if strings.Contains(trimmed, "T") || strings.Contains(trimmed, " ") {
+		return trimmed
+	}
+
+	var parsed time.Time
+	var err error
+	if len(trimmed) <= len("15:04") {
+		parsed, err = time.Parse("15:04", trimmed)
+	} else {
+		parsed, err = time.Parse("15:04:05", trimmed)
+	}
+	if err != nil {
+		return trimmed
+	}
+
+	now := time.Now()
+	composed := time.Date(now.Year(), now.Month(), now.Day(), parsed.Hour(), parsed.Minute(), parsed.Second(), 0, time.Local)
+	return composed.Format("2006-01-02 15:04:05")
 }
 
 // GetAtracciones lista atracciones con filtros
@@ -253,12 +279,14 @@ func (h *AtraccionHandler) CreateAtraccion(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Horarios
-	if req.HorarioApertura != "" {
-		atraccion.HorarioApertura = &req.HorarioApertura
+	if strings.TrimSpace(req.HorarioApertura) != "" {
+		normalized := normalizeHorarioToTimestamp(req.HorarioApertura)
+		atraccion.HorarioApertura = &normalized
 	}
 
-	if req.HorarioCierre != "" {
-		atraccion.HorarioCierre = &req.HorarioCierre
+	if strings.TrimSpace(req.HorarioCierre) != "" {
+		normalized := normalizeHorarioToTimestamp(req.HorarioCierre)
+		atraccion.HorarioCierre = &normalized
 	}
 
 	// Iniciar transaccion
@@ -426,12 +454,14 @@ func (h *AtraccionHandler) UpdateAtraccion(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Horarios
-	if req.HorarioApertura != "" {
-		atraccion.HorarioApertura = &req.HorarioApertura
+	if strings.TrimSpace(req.HorarioApertura) != "" {
+		normalized := normalizeHorarioToTimestamp(req.HorarioApertura)
+		atraccion.HorarioApertura = &normalized
 	}
 
-	if req.HorarioCierre != "" {
-		atraccion.HorarioCierre = &req.HorarioCierre
+	if strings.TrimSpace(req.HorarioCierre) != "" {
+		normalized := normalizeHorarioToTimestamp(req.HorarioCierre)
+		atraccion.HorarioCierre = &normalized
 	}
 
 	if err := database.GetDB().Save(&atraccion).Error; err != nil {

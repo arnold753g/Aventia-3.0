@@ -55,6 +55,14 @@
                   <Tag :value="statusLabel" :severity="statusSeverity" />
                 </div>
                 <div>
+                  <p class="text-xs text-gray-500">Tipo de compra</p>
+                  <p class="font-semibold text-gray-900">{{ tipoCompraLabel }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500">Fecha de compra</p>
+                  <p class="font-semibold text-gray-900">{{ formatFechaHora(compra.fecha_compra) }}</p>
+                </div>
+                <div>
                   <p class="text-xs text-gray-500">Fecha seleccionada</p>
                   <p class="font-semibold text-gray-900">{{ formatFecha(compra.fecha_seleccionada) }}</p>
                 </div>
@@ -65,6 +73,52 @@
                 <div class="md:col-span-2">
                   <p class="text-xs text-gray-500">Total</p>
                   <p class="text-2xl font-bold text-emerald-700">Bs. {{ formatMoney(compra.precio_total) }}</p>
+                </div>
+              </div>
+            </template>
+          </Card>
+
+          <Card v-if="paquete" class="surface-card">
+            <template #title>
+              <div class="flex items-center gap-2">
+                <i class="pi pi-map-marker text-sky-600"></i>
+                <span>Detalle del paquete</span>
+              </div>
+            </template>
+            <template #content>
+              <div class="flex flex-col md:flex-row gap-4">
+                <img
+                  v-if="paqueteFotoUrl"
+                  :src="paqueteFotoUrl"
+                  alt="Foto del paquete"
+                  class="w-full md:w-56 h-40 object-cover rounded-lg border border-gray-200"
+                  loading="lazy"
+                />
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+                  <div>
+                    <p class="text-xs text-gray-500">Agencia</p>
+                    <p class="font-semibold text-gray-900">{{ agenciaNombre }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Ubicacion</p>
+                    <p class="font-semibold text-gray-900">{{ agenciaUbicacion }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Duracion</p>
+                    <p class="font-semibold text-gray-900">{{ duracionLabel }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Horario</p>
+                    <p class="font-semibold text-gray-900">{{ horarioLabel }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Hora salida</p>
+                    <p class="font-semibold text-gray-900">{{ horaSalidaLabel }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Dificultad</p>
+                    <p class="font-semibold text-gray-900">{{ dificultadLabel }}</p>
+                  </div>
                 </div>
               </div>
             </template>
@@ -117,6 +171,46 @@
 
               <div v-else class="text-sm text-gray-600">
                 La agencia no tiene datos de pago configurados.
+              </div>
+            </template>
+          </Card>
+
+          <Card v-if="compra?.ultimo_pago" class="surface-card">
+            <template #title>
+              <div class="flex items-center gap-2">
+                <i class="pi pi-receipt text-emerald-600"></i>
+                <span>Pago registrado</span>
+              </div>
+            </template>
+            <template #content>
+              <div class="space-y-3">
+                <div class="text-sm">
+                  <span class="text-gray-500">Metodo:</span>
+                  <span class="font-semibold text-gray-900 ml-2">{{ metodoPagoLabel }}</span>
+                </div>
+                <div class="text-sm">
+                  <span class="text-gray-500">Monto:</span>
+                  <span class="font-semibold text-gray-900 ml-2">Bs. {{ formatMoney(compra.ultimo_pago?.monto) }}</span>
+                </div>
+                <div class="text-sm flex items-center gap-2">
+                  <span class="text-gray-500">Estado:</span>
+                  <Tag :value="pagoStatusLabel" :severity="pagoStatusSeverity" />
+                </div>
+                <div v-if="compra.ultimo_pago?.fecha_confirmacion" class="text-sm">
+                  <span class="text-gray-500">Confirmado:</span>
+                  <span class="font-semibold text-gray-900 ml-2">{{ formatFechaHora(compra.ultimo_pago?.fecha_confirmacion) }}</span>
+                </div>
+
+                <div v-if="compra.ultimo_pago?.comprobante_foto" class="pt-3">
+                  <p class="text-xs text-gray-500 mb-2">Comprobante</p>
+                  <img
+                    :src="resolveAssetUrl(compra.ultimo_pago?.comprobante_foto)"
+                    alt="Comprobante"
+                    class="w-full rounded-lg border border-gray-200"
+                    loading="lazy"
+                  />
+                </div>
+                <p v-else class="text-sm text-gray-600">No hay comprobante adjunto.</p>
               </div>
             </template>
           </Card>
@@ -190,9 +284,123 @@ const statusSeverity = computed(() => {
   return map[compra.value?.status] || 'secondary'
 })
 
+const tipoCompraLabel = computed(() => {
+  const map: Record<string, string> = {
+    compartido: 'Compartido',
+    privado: 'Privado'
+  }
+  return map[compra.value?.tipo_compra] || compra.value?.tipo_compra || 'N/D'
+})
+
+const metodoPagoLabel = computed(() => {
+  const map: Record<string, string> = {
+    efectivo: 'Efectivo',
+    qr: 'QR',
+    transferencia: 'Transferencia'
+  }
+  return map[compra.value?.ultimo_pago?.metodo_pago] || compra.value?.ultimo_pago?.metodo_pago || 'N/D'
+})
+
+const pagoStatusLabel = computed(() => {
+  const map: Record<string, string> = {
+    pendiente: 'Pendiente',
+    confirmado: 'Confirmado',
+    rechazado: 'Rechazado'
+  }
+  return map[compra.value?.ultimo_pago?.estado] || compra.value?.ultimo_pago?.estado || 'N/D'
+})
+
+const pagoStatusSeverity = computed(() => {
+  const map: Record<string, any> = {
+    pendiente: 'warning',
+    confirmado: 'success',
+    rechazado: 'danger'
+  }
+  return map[compra.value?.ultimo_pago?.estado] || 'secondary'
+})
+
+const frecuenciaLabel = computed(() => {
+  const map: Record<string, string> = {
+    salida_diaria: 'Salida diaria',
+    salida_unica: 'Salida unica'
+  }
+  return map[paquete.value?.frecuencia] || paquete.value?.frecuencia || 'N/D'
+})
+
+const duracionLabel = computed(() => {
+  const value = Number(paquete.value?.duracion_dias || 0)
+  if (!value) return 'N/D'
+  return value === 1 ? '1 dia' : `${value} dias`
+})
+
+const horarioLabel = computed(() => {
+  const raw = paquete.value?.horario
+  if (!raw) return 'N/D'
+  const map: Record<string, string> = {
+    manana: 'Manana',
+    mañana: 'Manana',
+    tarde: 'Tarde',
+    todo_dia: 'Todo el dia'
+  }
+  return map[String(raw)] || String(raw)
+})
+
+const dificultadLabel = computed(() => {
+  const map: Record<string, string> = {
+    facil: 'Facil',
+    medio: 'Medio',
+    dificil: 'Dificil',
+    extremo: 'Extremo'
+  }
+  return map[paquete.value?.nivel_dificultad] || paquete.value?.nivel_dificultad || 'N/D'
+})
+
+const horaSalidaLabel = computed(() => {
+  const raw = paquete.value?.hora_salida
+  if (!raw) return 'N/D'
+  const value = String(raw).trim()
+  const match = value.match(/(\d{1,2}):(\d{2})/)
+  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`
+  const parsed = new Date(value)
+  if (!Number.isNaN(parsed.getTime())) {
+    const hh = String(parsed.getHours()).padStart(2, '0')
+    const mm = String(parsed.getMinutes()).padStart(2, '0')
+    return `${hh}:${mm}`
+  }
+  return value
+})
+
+const agenciaNombre = computed(() => paquete.value?.agencia?.nombre_comercial || 'N/D')
+const agenciaUbicacion = computed(() => paquete.value?.agencia?.departamento?.nombre || paquete.value?.agencia?.direccion || 'N/D')
+
+const paqueteFotoUrl = computed(() => {
+  const fotos = (paquete.value?.fotos || []).slice()
+  fotos.sort((a: any, b: any) => {
+    if (!!a.es_principal !== !!b.es_principal) return a.es_principal ? -1 : 1
+    return (a.orden || 0) - (b.orden || 0)
+  })
+  const principal = fotos[0]
+  return principal?.foto ? resolveAssetUrl(principal.foto) : ''
+})
+
 const formatMoney = (value: any) => {
   const n = Number(value || 0)
   return n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const formatFechaHora = (value?: any) => {
+  if (!value) return ''
+  const raw = String(value)
+  const parsed = new Date(raw)
+  if (!Number.isNaN(parsed.getTime())) {
+    const d = String(parsed.getDate()).padStart(2, '0')
+    const m = String(parsed.getMonth() + 1).padStart(2, '0')
+    const y = parsed.getFullYear()
+    const hh = String(parsed.getHours()).padStart(2, '0')
+    const mm = String(parsed.getMinutes()).padStart(2, '0')
+    return `${d}/${m}/${y} ${hh}:${mm}`
+  }
+  return formatFecha(raw)
 }
 
 const formatFecha = (value?: any) => {

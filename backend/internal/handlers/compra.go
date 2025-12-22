@@ -131,3 +131,36 @@ func (h *CompraHandler) ListarMisCompras(w http.ResponseWriter, r *http.Request)
 		},
 	}, "Compras obtenidas exitosamente", http.StatusOK)
 }
+
+// CancelarCompra cancela una compra pendiente del turista
+func (h *CompraHandler) CancelarCompra(w http.ResponseWriter, r *http.Request) {
+	claims, ok := getClaimsOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+
+	if claims.Rol != "turista" {
+		utils.ErrorResponse(w, "FORBIDDEN", "Solo turistas pueden cancelar sus compras", nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	id64, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		utils.ErrorResponse(w, "INVALID_ID", "ID inválido", nil, http.StatusBadRequest)
+		return
+	}
+
+	// Obtener razón del body (opcional)
+	var req struct {
+		Razon string `json:"razon"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+
+	if err := h.compraService.CancelarCompra(uint(id64), claims.UserID, req.Razon); err != nil {
+		utils.ErrorResponse(w, "CANCELATION_ERROR", err.Error(), nil, http.StatusBadRequest)
+		return
+	}
+
+	utils.SuccessResponse(w, nil, "Compra cancelada exitosamente", http.StatusOK)
+}

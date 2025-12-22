@@ -64,5 +64,6 @@ type PagoSimpleResponse struct {
 	MetodoPago        string     `json:"metodo_pago"`
 	Monto             float64    `json:"monto"`
 	Estado            string     `json:"estado"`
+	ComprobanteFoto   *string    `json:"comprobante_foto"`
 	FechaConfirmacion *time.Time `json:"fecha_confirmacion"`
 }

@@ -6,7 +6,7 @@
           <div>
             <p class="text-sm text-gray-500">Panel de agencia</p>
             <h1 class="text-3xl font-bold text-gray-900">Paquetes turísticos</h1>
-            <p class="muted mt-1">Crea y gestiona tus paquetes y sus salidas.</p>
+            <p class="muted mt-1">Crea y gestiona tus paquetes turísticos.</p>
           </div>
           <div class="flex gap-2">
             <Button label="Nuevo paquete" icon="pi pi-plus" @click="navigateTo('/agencia/paquetes/nuevo')" />

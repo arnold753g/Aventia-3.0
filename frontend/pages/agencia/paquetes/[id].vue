@@ -124,7 +124,15 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Hora de salida</label>
-                <InputMask v-model="generalForm.hora_salida" mask="99:99" placeholder="08:30" class="w-full" />
+                <DatePicker
+                  v-model="horaSalidaPickerValue"
+                  timeOnly
+                  hourFormat="24"
+                  iconDisplay="input"
+                  showIcon
+                  icon="pi pi-clock"
+                  fluid
+                />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Duración (horas)</label>
@@ -718,6 +726,8 @@ const agencia = ref<any>(null)
 const paquete = ref<any>(null)
 const loading = ref(true)
 
+const DEFAULT_HORA_SALIDA = '08:30'
+
 const tabs = [
   { label: 'General', value: 'general', icon: 'pi pi-info-circle' },
   { label: 'Fotos', value: 'fotos', icon: 'pi pi-images' },
@@ -761,6 +771,42 @@ const formatDate = (date: Date) => {
   return `${y}-${m}-${d}`
 }
 
+const normalizeTimeString = (value?: string | null) => {
+  if (!value) return ''
+  const match = String(value).match(/(\d{1,2}):(\d{2})/)
+  if (!match) return ''
+  return `${match[1].padStart(2, '0')}:${match[2]}`
+}
+
+const timeStringToDate = (timeStr?: string | null) => {
+  const normalized = normalizeTimeString(timeStr)
+  if (!normalized) return null
+  const [hours, minutes] = normalized.split(':').map(Number)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  const date = new Date()
+  date.setHours(hours, minutes, 0, 0)
+  return date
+}
+
+const dateToTimeString = (date: Date | null) => {
+  if (!date) return ''
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+const timeStringToTimestamp = (timeStr?: string | null) => {
+  const normalized = normalizeTimeString(timeStr)
+  if (!normalized) return ''
+  const [hours, minutes] = normalized.split(':').map(Number)
+  const date = new Date()
+  date.setHours(hours, minutes, 0, 0)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d} ${normalized}:00`
+}
+
 const formatFecha = (value?: any) => {
   if (!value) return ''
 
@@ -795,7 +841,7 @@ const generalForm = ref({
   dias_previos_compra: 1,
   nivel_dificultad: null as string | null,
   horario: null as string | null,
-  hora_salida: '',
+  hora_salida: DEFAULT_HORA_SALIDA,
   duracion_horas_num: 4,
   cupo_minimo: 1,
   cupo_maximo: 10,
@@ -811,6 +857,12 @@ const generalForm = ref({
 
 const generalIsMultiDay = computed(() => Number(generalForm.value.duracion_dias || 1) > 1)
 const generalDuracionNoches = computed(() => Math.max(0, Number(generalForm.value.duracion_dias || 1) - 1))
+const horaSalidaPickerValue = computed({
+  get: () => timeStringToDate(generalForm.value.hora_salida),
+  set: (val: Date | null) => {
+    generalForm.value.hora_salida = dateToTimeString(val)
+  }
+})
 
 watch(
   () => generalForm.value.duracion_dias,
@@ -820,6 +872,10 @@ watch(
     if (safe > 1) {
       generalForm.value.horario = null
       generalForm.value.hora_salida = ''
+      return
+    }
+    if (!generalForm.value.hora_salida) {
+      generalForm.value.hora_salida = DEFAULT_HORA_SALIDA
     }
   }
 )
@@ -839,7 +895,7 @@ const hydrateGeneralForm = (p: any) => {
     dias_previos_compra: Number(p?.dias_previos_compra || 1),
     nivel_dificultad: p?.nivel_dificultad || null,
     horario: p?.horario || null,
-    hora_salida: p?.hora_salida ? String(p.hora_salida).slice(0, 5) : '',
+    hora_salida: normalizeTimeString(p?.hora_salida) || DEFAULT_HORA_SALIDA,
     duracion_horas_num: parseIntervalHours(p?.duracion_horas) || 4,
     cupo_minimo: Number(p?.cupo_minimo || 1),
     cupo_maximo: Number(p?.cupo_maximo || 10),
@@ -938,7 +994,8 @@ const saveGeneral = async () => {
 
   if (duracionDias <= 1) {
     payload.horario = generalForm.value.horario || ''
-    payload.hora_salida = generalForm.value.hora_salida?.trim() || ''
+    const horaSalidaPayload = timeStringToTimestamp(generalForm.value.hora_salida)
+    payload.hora_salida = horaSalidaPayload || ''
     payload.duracion_horas = generalForm.value.duracion_horas_num ? `${Number(generalForm.value.duracion_horas_num)} hours` : ''
   } else {
     payload.horario = null

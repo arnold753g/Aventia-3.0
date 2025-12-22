@@ -575,9 +575,25 @@ const horarioLabel = computed(() => {
 })
 
 const horaSalidaLabel = computed(() => {
-  const h = paquete.value?.hora_salida
-  if (!h) return 'N/D'
-  return String(h).slice(0, 5)
+  const raw = (paquete.value as any)?.hora_salida ?? (paquete.value as any)?.horaSalida ?? (paquete.value as any)?.HoraSalida
+  if (raw === null || raw === undefined) return 'N/D'
+  const value = String(raw).trim()
+  if (!value) return 'N/D'
+
+  const match = value.match(/(\d{1,2}):(\d{2})/)
+  if (match) {
+    const hh = match[1].padStart(2, '0')
+    return `${hh}:${match[2]}`
+  }
+
+  const parsed = new Date(value)
+  if (!Number.isNaN(parsed.getTime())) {
+    const hh = String(parsed.getHours()).padStart(2, '0')
+    const mm = String(parsed.getMinutes()).padStart(2, '0')
+    return `${hh}:${mm}`
+  }
+
+  return value
 })
 
 const duracionHorasLabel = computed(() => {

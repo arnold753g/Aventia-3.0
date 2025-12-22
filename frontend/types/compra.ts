@@ -44,6 +44,7 @@ export interface CompraDetalle {
     metodo_pago: string
     monto: number
     estado: string
+    comprobante_foto?: string | null
     fecha_confirmacion: string | null
   } | null
 }
@@ -57,4 +58,3 @@ export interface ComprasListData {
     total_pages: number
   }
 }
-

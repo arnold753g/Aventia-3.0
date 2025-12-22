@@ -130,7 +130,15 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Hora de salida</label>
-                <InputMask v-model="form.hora_salida" mask="99:99" placeholder="08:30" class="w-full" />
+                <DatePicker
+                  v-model="horaSalidaPickerValue"
+                  timeOnly
+                  hourFormat="24"
+                  iconDisplay="input"
+                  showIcon
+                  icon="pi pi-clock"
+                  fluid
+                />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Duración (horas)</label>
@@ -217,6 +225,8 @@ const { createPaquete } = usePaquetes()
 const agencia = ref<any>(null)
 const loadingAgencia = ref(true)
 
+const DEFAULT_HORA_SALIDA = '08:30'
+
 const form = ref({
   nombre: '',
   descripcion: '',
@@ -226,7 +236,7 @@ const form = ref({
   dias_previos_compra: 1,
   nivel_dificultad: null as string | null,
   horario: null as string | null,
-  hora_salida: '',
+  hora_salida: DEFAULT_HORA_SALIDA,
   duracion_horas_num: 4,
   cupo_minimo: 1,
   cupo_maximo: 10,
@@ -237,7 +247,7 @@ const form = ref({
   no_incluye: [] as string[],
   que_llevar: [] as string[],
   status: 'borrador',
-  visible_publico: true
+  visible_publico: false
 })
 
 const statusOptions = [
@@ -264,8 +274,50 @@ const horarioOptions = [
   { label: 'Todo el día', value: 'todo_dia' }
 ]
 
+const normalizeTimeString = (value?: string | null) => {
+  if (!value) return ''
+  const match = String(value).match(/(\d{1,2}):(\d{2})/)
+  if (!match) return ''
+  return `${match[1].padStart(2, '0')}:${match[2]}`
+}
+
+const timeStringToDate = (timeStr?: string | null) => {
+  const normalized = normalizeTimeString(timeStr)
+  if (!normalized) return null
+  const [hours, minutes] = normalized.split(':').map(Number)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  const date = new Date()
+  date.setHours(hours, minutes, 0, 0)
+  return date
+}
+
+const dateToTimeString = (date: Date | null) => {
+  if (!date) return ''
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+const timeStringToTimestamp = (timeStr?: string | null) => {
+  const normalized = normalizeTimeString(timeStr)
+  if (!normalized) return ''
+  const [hours, minutes] = normalized.split(':').map(Number)
+  const date = new Date()
+  date.setHours(hours, minutes, 0, 0)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d} ${normalized}:00`
+}
+
 const isMultiDay = computed(() => Number(form.value.duracion_dias || 1) > 1)
 const duracionNoches = computed(() => Math.max(0, Number(form.value.duracion_dias || 1) - 1))
+const horaSalidaPickerValue = computed({
+  get: () => timeStringToDate(form.value.hora_salida),
+  set: (val: Date | null) => {
+    form.value.hora_salida = dateToTimeString(val)
+  }
+})
 
 watch(
   () => form.value.frecuencia,
@@ -282,6 +334,10 @@ watch(
     if (safe > 1) {
       form.value.horario = null
       form.value.hora_salida = ''
+      return
+    }
+    if (!form.value.hora_salida) {
+      form.value.hora_salida = DEFAULT_HORA_SALIDA
     }
   }
 )
@@ -366,7 +422,8 @@ const handleSubmit = async () => {
 
   if (duracionDias <= 1) {
     payload.horario = form.value.horario || undefined
-    payload.hora_salida = form.value.hora_salida?.trim() || undefined
+    const horaSalidaPayload = timeStringToTimestamp(form.value.hora_salida)
+    payload.hora_salida = horaSalidaPayload || undefined
     payload.duracion_horas = form.value.duracion_horas_num ? `${Number(form.value.duracion_horas_num)} hours` : undefined
   }
 
@@ -391,4 +448,3 @@ const handleSubmit = async () => {
 
 onMounted(loadAgencia)
 </script>
-

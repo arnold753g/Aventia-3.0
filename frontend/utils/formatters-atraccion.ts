@@ -59,10 +59,21 @@ export const formatPrecioBoliviano = (precio: number) => {
   return `Bs. ${precio.toFixed(2)}`
 }
 
+export const extractHora = (value?: string) => {
+  if (!value) return ''
+  const match = value.match(/(\d{1,2}):(\d{2})/)
+  if (!match) return value
+  const hh = match[1].padStart(2, '0')
+  const mm = match[2]
+  return `${hh}:${mm}`
+}
+
 // Formatear horario
 export const formatHorario = (apertura?: string, cierre?: string) => {
-  if (!apertura || !cierre) return 'Horario no especificado'
-  return `${apertura} - ${cierre}`
+  const aperturaHora = extractHora(apertura)
+  const cierreHora = extractHora(cierre)
+  if (!aperturaHora || !cierreHora) return 'Horario no especificado'
+  return `${aperturaHora} - ${cierreHora}`
 }
 
 // Formatear mejor época

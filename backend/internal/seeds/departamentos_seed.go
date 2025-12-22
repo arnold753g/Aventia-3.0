@@ -145,6 +145,10 @@ func RunAllSeeds(db *gorm.DB) error {
 		return fmt.Errorf("error en seed de categorías/subcategorías: %w", err)
 	}
 
+	if err := SeedUsuariosDemo(db); err != nil {
+		return fmt.Errorf("error en seed de usuarios demo: %w", err)
+	}
+
 	log.Println("✅ Todos los seeds completados exitosamente")
 	return nil
 }

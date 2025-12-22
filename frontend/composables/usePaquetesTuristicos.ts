@@ -34,9 +34,24 @@ export const usePaquetesTuristicos = () => {
     return $fetch(`${apiBase}/paquetes/${id}`, { headers: authHeader() })
   }
 
+  const getSalidas = async (
+    paqueteId: number,
+    params: {
+      fecha?: string
+      tipo?: 'compartido' | 'privado'
+    } = {}
+  ) => {
+    const query = new URLSearchParams()
+    if (params.fecha) query.append('fecha', params.fecha)
+    if (params.tipo) query.append('tipo', params.tipo)
+    const qs = query.toString()
+    const url = qs ? `${apiBase}/paquetes/${paqueteId}/salidas?${qs}` : `${apiBase}/paquetes/${paqueteId}/salidas`
+    return $fetch(url, { headers: authHeader() })
+  }
+
   return {
     getPaquetes,
-    getPaquete
+    getPaquete,
+    getSalidas
   }
 }
-

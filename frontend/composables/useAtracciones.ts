@@ -7,7 +7,7 @@ export const useAtracciones = () => {
 
   const authHeader = () => (authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined)
 
-  // Obtener lista de atracciones
+  // Obtener lista de atracciones (endpoint público)
   const getAtracciones = async (params: {
     page?: number
     limit?: number
@@ -30,16 +30,12 @@ export const useAtracciones = () => {
       }
     })
 
-    return $fetch(`${apiBase}/atracciones?${queryParams}`, {
-      headers: authHeader()
-    })
+    return $fetch(`${apiBase}/public/atracciones?${queryParams}`)
   }
 
-  // Obtener una atracción por ID
+  // Obtener una atracción por ID (endpoint público)
   const getAtraccion = async (id: number) => {
-    return $fetch(`${apiBase}/atracciones/${id}`, {
-      headers: authHeader()
-    })
+    return $fetch(`${apiBase}/public/atracciones/${id}`)
   }
 
   // Crear atracción
@@ -116,35 +112,35 @@ export const useAtracciones = () => {
     })
   }
 
-  // Datos auxiliares
+  // Datos auxiliares (endpoints públicos bajo /data)
   const getCategorias = async () => {
-    return $fetch(`${apiBase}/categorias`)
+    return $fetch(`${apiBase}/data/categorias`)
   }
 
   const getSubcategorias = async (categoriaId?: number) => {
     const url = categoriaId
-      ? `${apiBase}/subcategorias?categoria_id=${categoriaId}`
-      : `${apiBase}/subcategorias`
+      ? `${apiBase}/data/subcategorias?categoria_id=${categoriaId}`
+      : `${apiBase}/data/subcategorias`
     return $fetch(url)
   }
 
   const getDepartamentos = async () => {
-    return $fetch(`${apiBase}/departamentos`)
+    return $fetch(`${apiBase}/data/departamentos`)
   }
 
   const getProvincias = async (departamentoId?: number) => {
     const url = departamentoId
-      ? `${apiBase}/provincias?departamento_id=${departamentoId}`
-      : `${apiBase}/provincias`
+      ? `${apiBase}/data/provincias?departamento_id=${departamentoId}`
+      : `${apiBase}/data/provincias`
     return $fetch(url)
   }
 
   const getDias = async () => {
-    return $fetch(`${apiBase}/dias`)
+    return $fetch(`${apiBase}/data/dias`)
   }
 
   const getMeses = async () => {
-    return $fetch(`${apiBase}/meses`)
+    return $fetch(`${apiBase}/data/meses`)
   }
 
   return {

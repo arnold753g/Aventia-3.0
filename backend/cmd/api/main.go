@@ -50,45 +50,68 @@ func main() {
 	// API v1 routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 
-	// Auth routes (publicas)
+	// Handlers
 	authHandler := handlers.NewAuthHandler()
 	usuarioHandler := handlers.NewUsuarioHandler()
 	agenciaHandler := handlers.NewAgenciaHandler()
 	compraHandler := handlers.NewCompraHandler()
 	pagoHandler := handlers.NewPagoHandler()
+	atraccionHandler := handlers.NewAtraccionHandler()
 
+	// ========== RUTAS PÚBLICAS (sin autenticación) ==========
+	// Aplicar rate limiting (100 requests/minuto) y caché (5 minutos)
+	publicAPI := api.PathPrefix("/public").Subrouter()
+	publicAPI.Use(middleware.RateLimitMiddleware(100))
+	publicAPI.Use(middleware.CacheMiddleware(5 * time.Minute))
+
+	// Paquetes turísticos públicos
+	publicAPI.HandleFunc("/paquetes", agenciaHandler.GetPaquetesPublicos).Methods("GET")
+	publicAPI.HandleFunc("/paquetes/{id:[0-9]+}", agenciaHandler.GetPaquetePublico).Methods("GET")
+	publicAPI.HandleFunc("/paquetes/{id:[0-9]+}/salidas", agenciaHandler.GetPaqueteSalidasPublicas).Methods("GET")
+	publicAPI.HandleFunc("/salidas-confirmadas", agenciaHandler.GetSalidasConfirmadasPublicas).Methods("GET")
+
+	// Agencias públicas
+	publicAPI.HandleFunc("/agencias", agenciaHandler.GetAgencias).Methods("GET")
+	publicAPI.HandleFunc("/agencias/{id:[0-9]+}", agenciaHandler.GetAgencia).Methods("GET")
+
+	// Atracciones públicas
+	publicAPI.HandleFunc("/atracciones", atraccionHandler.GetAtracciones).Methods("GET")
+	publicAPI.HandleFunc("/atracciones/{id:[0-9]+}", atraccionHandler.GetAtraccion).Methods("GET")
+
+	// Datos auxiliares públicos (sin caché ya que rara vez cambian)
+	dataAPI := api.PathPrefix("/data").Subrouter()
+	dataAPI.HandleFunc("/departamentos", agenciaHandler.GetDepartamentos).Methods("GET")
+	dataAPI.HandleFunc("/provincias", atraccionHandler.GetProvincias).Methods("GET")
+	dataAPI.HandleFunc("/categorias", atraccionHandler.GetCategorias).Methods("GET")
+	dataAPI.HandleFunc("/subcategorias", atraccionHandler.GetSubcategorias).Methods("GET")
+	dataAPI.HandleFunc("/dias", atraccionHandler.GetDias).Methods("GET")
+	dataAPI.HandleFunc("/meses", atraccionHandler.GetMeses).Methods("GET")
+
+	// Auth routes (públicas pero sin caché)
 	auth := api.PathPrefix("/auth").Subrouter()
+	auth.Use(middleware.RateLimitMiddleware(20)) // Más restrictivo: 20 req/min
 	auth.HandleFunc("/register", authHandler.Register).Methods("POST")
 	auth.HandleFunc("/login", authHandler.Login).Methods("POST")
 	auth.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST")
 	auth.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 
-	// Check duplicados (publico)
+	// Check duplicados (público sin caché)
 	api.HandleFunc("/usuarios/check", usuarioHandler.CheckUsuarioExiste).Methods("GET")
 
-	// Protected routes (requieren autenticacion)
+	// ========== RUTAS PROTEGIDAS (requieren autenticación) ==========
 	protected := api.PathPrefix("").Subrouter()
 	protected.Use(middleware.AuthMiddleware)
 
+	// Profile
+	protected.HandleFunc("/profile", authHandler.GetProfile).Methods("GET")
+
 	// ========== RUTAS DE USUARIOS ==========
-	// Rutas autenticadas para todos los usuarios
 	protected.HandleFunc("/usuarios/{id:[0-9]+}", usuarioHandler.GetUsuario).Methods("GET")
 	protected.HandleFunc("/usuarios/{id:[0-9]+}", usuarioHandler.UpdateUsuario).Methods("PUT")
 
-	// ========== RUTAS DE AGENCIAS TURISTICAS ==========
-	// Rutas públicas
-	api.HandleFunc("/agencias", agenciaHandler.GetAgencias).Methods("GET")
-	api.HandleFunc("/agencias/{id:[0-9]+}", agenciaHandler.GetAgencia).Methods("GET")
-	api.HandleFunc("/agencias/data/departamentos", agenciaHandler.GetDepartamentos).Methods("GET")
-	api.HandleFunc("/agencias/data/categorias", agenciaHandler.GetCategorias).Methods("GET")
-	api.HandleFunc("/agencias/data/dias", agenciaHandler.GetDias).Methods("GET")
-	api.HandleFunc("/agencias/data/encargados", agenciaHandler.GetEncargados).Methods("GET")
-
-	// ========== PAQUETES TURISTICOS (PUBLICO) ==========
-	api.HandleFunc("/paquetes", agenciaHandler.GetPaquetesPublicos).Methods("GET")
-	api.HandleFunc("/paquetes/{id:[0-9]+}", agenciaHandler.GetPaquetePublico).Methods("GET")
-	api.HandleFunc("/paquetes/{id:[0-9]+}/salidas", agenciaHandler.GetPaqueteSalidasPublicas).Methods("GET")
-	api.HandleFunc("/salidas-confirmadas", agenciaHandler.GetSalidasConfirmadasPublicas).Methods("GET")
+	// ========== RUTAS DE AGENCIAS TURISTICAS (Protegidas) ==========
+	// Datos auxiliares protegidos
+	protected.HandleFunc("/agencias/data/encargados", agenciaHandler.GetEncargados).Methods("GET")
 
 	// Rutas protegidas (requieren autenticación)
 	protected.HandleFunc("/agencias/rapida", agenciaHandler.CreateAgenciaRapida).Methods("POST")
@@ -152,21 +175,7 @@ func main() {
 	pagosManager.HandleFunc("/pagos/{id:[0-9]+}/confirmar", pagoHandler.ConfirmarPago).Methods("PUT")
 	pagosManager.HandleFunc("/pagos/{id:[0-9]+}/rechazar", pagoHandler.RechazarPago).Methods("PUT")
 
-	// ========== RUTAS DE ATRACCIONES TURISTICAS ==========
-	atraccionHandler := handlers.NewAtraccionHandler()
-
-	// Rutas publicas
-	api.HandleFunc("/atracciones", atraccionHandler.GetAtracciones).Methods("GET")
-	api.HandleFunc("/atracciones/{id}", atraccionHandler.GetAtraccion).Methods("GET")
-
-	// Rutas de datos auxiliares (publicas)
-	api.HandleFunc("/categorias", atraccionHandler.GetCategorias).Methods("GET")
-	api.HandleFunc("/subcategorias", atraccionHandler.GetSubcategorias).Methods("GET")
-	api.HandleFunc("/departamentos", atraccionHandler.GetDepartamentos).Methods("GET")
-	api.HandleFunc("/provincias", atraccionHandler.GetProvincias).Methods("GET")
-	api.HandleFunc("/dias", atraccionHandler.GetDias).Methods("GET")
-	api.HandleFunc("/meses", atraccionHandler.GetMeses).Methods("GET")
-
+	// ========== RUTAS DE ATRACCIONES TURISTICAS (Protegidas) ==========
 	// Rutas protegidas (requieren autenticacion)
 	protected.HandleFunc("/atracciones", atraccionHandler.CreateAtraccion).Methods("POST")
 	protected.HandleFunc("/atracciones/{id}", atraccionHandler.UpdateAtraccion).Methods("PUT")
@@ -191,9 +200,6 @@ func main() {
 	adminRouter.HandleFunc("/agencias/{id:[0-9]+}/status", agenciaHandler.UpdateAgenciaStatus).Methods("PATCH")
 	adminRouter.HandleFunc("/agencias/stats", agenciaHandler.GetStats).Methods("GET")
 
-	// Profile
-	protected.HandleFunc("/profile", authHandler.GetProfile).Methods("GET")
-
 	// Health check
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -207,26 +213,20 @@ func main() {
 	log.Printf("Health check: http://%s/health\n", addr)
 	log.Printf("API v1: http://%s/api/v1\n", addr)
 
-	log.Printf("\n ENDPOINTS DE USUARIOS:\n")
-	log.Printf("   GET    http://%s/api/v1/admin/usuarios (Lista - Admin)\n", addr)
-	log.Printf("   POST   http://%s/api/v1/admin/usuarios (Crear - Admin)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/usuarios/{id} (Ver detalle)\n", addr)
-	log.Printf("   PUT    http://%s/api/v1/usuarios/{id} (Actualizar)\n", addr)
-	log.Printf("   PATCH  http://%s/api/v1/admin/usuarios/{id}/rol (Cambiar rol - Admin)\n", addr)
-	log.Printf("   PATCH  http://%s/api/v1/admin/usuarios/{id}/status (Cambiar status - Admin)\n", addr)
-	log.Printf("   POST   http://%s/api/v1/admin/usuarios/{id}/deactivate (Desactivar - Admin)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/admin/usuarios/stats (Estadisticas - Admin)\n", addr)
-	log.Printf("\n ENDPOINTS DE ATRACCIONES:\n")
-	log.Printf("   GET    http://%s/api/v1/atracciones (Lista publica)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/atracciones/{id} (Ver detalle)\n", addr)
-	log.Printf("   POST   http://%s/api/v1/atracciones (Crear)\n", addr)
-	log.Printf("   PUT    http://%s/api/v1/atracciones/{id} (Actualizar)\n", addr)
-	log.Printf("   DELETE http://%s/api/v1/admin/atracciones/{id} (Desactivar - Admin)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/admin/atracciones/stats (Estadisticas - Admin)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/categorias (Categorias)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/subcategorias (Subcategorias)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/departamentos (Departamentos)\n", addr)
-	log.Printf("   GET    http://%s/api/v1/provincias (Provincias)\n", addr)
+	log.Printf("\n ===== ENDPOINTS PÚBLICOS (sin login) =====\n")
+	log.Printf("   GET    http://%s/api/v1/public/paquetes (Listar paquetes - CACHEADO)\n", addr)
+	log.Printf("   GET    http://%s/api/v1/public/paquetes/{id} (Ver paquete - CACHEADO)\n", addr)
+	log.Printf("   GET    http://%s/api/v1/public/agencias (Listar agencias - CACHEADO)\n", addr)
+	log.Printf("   GET    http://%s/api/v1/public/atracciones (Listar atracciones - CACHEADO)\n", addr)
+	log.Printf("   GET    http://%s/api/v1/data/departamentos (Datos auxiliares)\n", addr)
+	log.Printf("   GET    http://%s/api/v1/data/categorias (Categorías)\n", addr)
+	log.Printf("\n ===== AUTENTICACIÓN =====\n")
+	log.Printf("   POST   http://%s/api/v1/auth/register (Registro)\n", addr)
+	log.Printf("   POST   http://%s/api/v1/auth/login (Login)\n", addr)
+	log.Printf("\n ===== ENDPOINTS PROTEGIDOS (requieren login) =====\n")
+	log.Printf("   POST   http://%s/api/v1/compras (Crear compra - Turista)\n", addr)
+	log.Printf("   POST   http://%s/api/v1/pagos (Crear pago - Turista)\n", addr)
+	log.Printf("   GET    http://%s/api/v1/profile (Mi perfil)\n", addr)
 
 	handler := corsHandler.Handler(router)
 	log.Fatal(http.ListenAndServe(addr, handler))

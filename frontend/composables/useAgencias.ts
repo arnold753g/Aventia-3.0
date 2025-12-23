@@ -7,7 +7,7 @@ export const useAgencias = () => {
 
   const authHeader = () => (authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined)
 
-  // Obtener lista de agencias
+  // Obtener lista de agencias (endpoint público)
   const getAgencias = async (params: {
     page?: number
     limit?: number
@@ -29,18 +29,14 @@ export const useAgencias = () => {
     })
 
     const qs = query.toString()
-    const url = qs ? `${apiBase}/agencias?${qs}` : `${apiBase}/agencias`
+    const url = qs ? `${apiBase}/public/agencias?${qs}` : `${apiBase}/public/agencias`
 
-    return $fetch(url, {
-      headers: authHeader()
-    })
+    return $fetch(url)
   }
 
-  // Obtener una agencia
+  // Obtener una agencia (endpoint público)
   const getAgencia = async (id: number) => {
-    return $fetch(`${apiBase}/agencias/${id}`, {
-      headers: authHeader()
-    })
+    return $fetch(`${apiBase}/public/agencias/${id}`)
   }
 
   // Obtener mi agencia (encargado)
@@ -217,19 +213,19 @@ export const useAgencias = () => {
     })
   }
 
-  // Obtener departamentos
+  // Obtener departamentos (endpoint público)
   const getDepartamentos = async () => {
-    return $fetch(`${apiBase}/agencias/data/departamentos`)
+    return $fetch(`${apiBase}/data/departamentos`)
   }
 
-  // Obtener categorías
+  // Obtener categorías (endpoint público)
   const getCategorias = async () => {
-    return $fetch(`${apiBase}/agencias/data/categorias`)
+    return $fetch(`${apiBase}/data/categorias`)
   }
 
-  // Obtener días
+  // Obtener días (endpoint público)
   const getDias = async () => {
-    return $fetch(`${apiBase}/agencias/data/dias`)
+    return $fetch(`${apiBase}/data/dias`)
   }
 
   // Obtener encargados

@@ -123,7 +123,11 @@ const assetsBase = config.public.apiBase.replace(/\/api\/v1\/?$/, '')
 const route = useRoute()
 
 const goToDetail = () => {
-  const base = route.path.startsWith('/admin') ? '/admin/atracciones' : '/turista/atracciones'
+  const base = route.path.startsWith('/admin')
+    ? '/admin/atracciones'
+    : route.path.startsWith('/atracciones')
+      ? '/atracciones'
+      : '/turista/atracciones'
   navigateTo(`${base}/${props.atraccion.id}`)
 }
 

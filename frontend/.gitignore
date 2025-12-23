@@ -22,3 +22,6 @@ logs
 .env
 .env.*
 !.env.example
+
+# Ignorar SOLO ese ejecutable
+backend/andaria-backend.exe

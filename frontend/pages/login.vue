@@ -1,20 +1,72 @@
-<template>
-  <div class="page-shell flex items-center justify-center px-4 py-10">
-    <Card class="w-full max-w-md surface-card">
-      <template #title>
-        <div class="text-center">
-          <h2 class="text-3xl font-bold" style="color: var(--color-primary);">
-            Iniciar sesion
-          </h2>
-          <p class="mt-2 muted">
-            Sistema Andaria
+﻿<template>
+  <section class="relative min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+    <div class="pointer-events-none absolute inset-0">
+      <div class="absolute -top-24 left-1/4 h-72 w-72 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.18),transparent_60%)]"></div>
+      <div class="absolute bottom-16 right-10 h-80 w-80 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.18),transparent_60%)]"></div>
+    </div>
+
+    <div class="relative w-full max-w-6xl grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+      <div class="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-[0_30px_60px_rgba(0,0,0,0.45)]">
+        <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent"></div>
+        <div class="relative space-y-6">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 rounded-2xl border border-white/20 bg-white/10 flex items-center justify-center">
+              <i class="pi pi-compass text-xl text-white"></i>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-[0.3em] text-white/60">Andaria</p>
+              <p class="text-2xl font-semibold text-white">Bienvenido</p>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-lg">
+            Accede para gestionar reservas, compras de paquetes y salidas confirmadas.
           </p>
+
+          <div class="space-y-4 text-sm text-white/60">
+            <div class="flex items-start gap-3">
+              <span class="mt-1 h-2 w-2 rounded-full bg-emerald-400"></span>
+              <p>Explora atracciones turisticas de Tarija.</p>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="mt-1 h-2 w-2 rounded-full bg-sky-400"></span>
+              <p>Paquetes turisticos de agencias verificadas.</p>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="mt-1 h-2 w-2 rounded-full bg-amber-400"></span>
+              <p>Salidas habilitadas y promociones.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-3 pt-2">
+            <NuxtLink
+              to="/atracciones"
+              class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs text-white/80 hover:border-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black/80"
+            >
+              Ver atracciones
+              <i class="pi pi-arrow-right text-xs"></i>
+            </NuxtLink>
+            <NuxtLink
+              to="/paquetes"
+              class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs text-white/80 hover:border-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black/80"
+            >
+              Ver paquetes
+              <i class="pi pi-arrow-right text-xs"></i>
+            </NuxtLink>
+          </div>
         </div>
-      </template>
-      <template #content>
-        <form @submit.prevent="handleLogin" class="space-y-6">
+      </div>
+
+      <div class="rounded-[28px] border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-[0_30px_60px_rgba(0,0,0,0.45)]">
+        <div class="text-center space-y-2">
+          <p class="text-xs uppercase tracking-[0.3em] text-white/60">Cuenta</p>
+          <h2 class="text-3xl md:text-4xl font-semibold text-white">Iniciar sesion</h2>
+          <p class="text-sm text-white/60">Sistema Andaria</p>
+        </div>
+
+        <form @submit.prevent="handleLogin" class="mt-8 space-y-6">
           <div>
-            <label for="email" class="block text-sm font-medium muted mb-2">
+            <label for="email" class="block text-sm text-white/70 mb-2">
               Email
             </label>
             <InputText
@@ -22,14 +74,15 @@
               v-model="email"
               type="email"
               placeholder="tu@email.com"
-              class="w-full"
+              autocomplete="email"
+              class="w-full bg-white/5 border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:ring-2 focus:ring-white/20"
               required
               :disabled="loading"
             />
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium muted mb-2">
+            <label for="password" class="block text-sm text-white/70 mb-2">
               Contrasena
             </label>
             <InputText
@@ -37,7 +90,8 @@
               v-model="password"
               type="password"
               placeholder="********"
-              class="w-full"
+              autocomplete="current-password"
+              class="w-full bg-white/5 border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:ring-2 focus:ring-white/20"
               required
               :disabled="loading"
             />
@@ -47,68 +101,71 @@
             type="submit"
             label="Ingresar"
             icon="pi pi-sign-in"
-            class="w-full p-button-lg"
+            class="w-full !bg-white !text-black hover:!bg-white/90 focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black/80"
             :loading="loading"
           />
         </form>
 
-        <div class="mt-6 text-center">
-          <p class="text-sm muted">
-            No tienes cuenta?
-            <NuxtLink to="/registro" class="font-semibold" style="color: var(--color-accent);">
-              Registrate aqui
-            </NuxtLink>
-          </p>
+        <div class="mt-6 text-center text-sm text-white/60">
+          No tienes cuenta?
+          <NuxtLink to="/registro" class="font-semibold text-white hover:text-white/90">
+            Registrate aqui
+          </NuxtLink>
         </div>
 
-        <div class="mt-8 p-4 rounded-lg" style="background: var(--color-neutral);">
-          <p class="text-sm font-semibold" style="color: var(--color-primary); margin-bottom: 0.5rem;">
-            Usuarios de prueba:
-          </p>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <span class="muted">Admin: admin@andaria.bo</span>
+        <div class="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-sm font-semibold text-white mb-3">Usuarios de prueba</p>
+          <div class="space-y-3 text-xs text-white/60">
+            <div class="flex items-center justify-between gap-2">
+              <span>Admin: admin@andaria.bo</span>
               <Button
                 label="Usar"
                 size="small"
                 text
+                class="!text-white/70 hover:!text-white"
                 @click="fillCredentials('admin@andaria.bo', 'admin123')"
                 :disabled="loading"
               />
             </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="muted">Turista: juan.perez@email.com</span>
+            <div class="flex items-center justify-between gap-2">
+              <span>Turista: juan.perez@email.com</span>
               <Button
                 label="Usar"
                 size="small"
                 text
+                class="!text-white/70 hover:!text-white"
                 @click="fillCredentials('juan.perez@email.com', 'turista123')"
                 :disabled="loading"
               />
             </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="muted">Agencia: maria.lopez@agencia.com</span>
+            <div class="flex items-center justify-between gap-2">
+              <span>Agencia: maria.lopez@agencia.com</span>
               <Button
                 label="Usar"
                 size="small"
                 text
+                class="!text-white/70 hover:!text-white"
                 @click="fillCredentials('maria.lopez@agencia.com', 'agencia123')"
                 :disabled="loading"
               />
             </div>
           </div>
         </div>
-      </template>
-    </Card>
+      </div>
+    </div>
 
     <Toast />
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '~/stores/auth'
+
+definePageMeta({
+  layout: 'home'
+})
 
 const toast = useToast()
 const authStore = useAuthStore()

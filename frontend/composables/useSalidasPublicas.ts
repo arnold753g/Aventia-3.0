@@ -1,12 +1,8 @@
-import { useAuthStore } from '~/stores/auth'
-
 export const useSalidasPublicas = () => {
   const config = useRuntimeConfig()
   const apiBase = config.public.apiBase
-  const authStore = useAuthStore()
 
-  const authHeader = () => (authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined)
-
+  // Obtener salidas confirmadas (endpoint público)
   const getSalidasConfirmadas = async (
     params: {
       page?: number
@@ -21,8 +17,8 @@ export const useSalidasPublicas = () => {
       if (value !== undefined && value !== null && value !== '') query.append(key, String(value))
     })
     const qs = query.toString()
-    const url = qs ? `${apiBase}/salidas-confirmadas?${qs}` : `${apiBase}/salidas-confirmadas`
-    return $fetch(url, { headers: authHeader() })
+    const url = qs ? `${apiBase}/public/salidas-confirmadas?${qs}` : `${apiBase}/public/salidas-confirmadas`
+    return $fetch(url)
   }
 
   return {

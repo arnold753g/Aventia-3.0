@@ -3,10 +3,8 @@ import { useAuthStore } from '~/stores/auth'
 export const usePaquetesTuristicos = () => {
   const config = useRuntimeConfig()
   const apiBase = config.public.apiBase
-  const authStore = useAuthStore()
 
-  const authHeader = () => (authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined)
-
+  // Obtener lista de paquetes (endpoint público)
   const getPaquetes = async (
     params: {
       page?: number
@@ -26,14 +24,16 @@ export const usePaquetesTuristicos = () => {
       if (value !== undefined && value !== null && value !== '') query.append(key, String(value))
     })
     const qs = query.toString()
-    const url = qs ? `${apiBase}/paquetes?${qs}` : `${apiBase}/paquetes`
-    return $fetch(url, { headers: authHeader() })
+    const url = qs ? `${apiBase}/public/paquetes?${qs}` : `${apiBase}/public/paquetes`
+    return $fetch(url)
   }
 
+  // Obtener detalle de paquete (endpoint público)
   const getPaquete = async (id: number) => {
-    return $fetch(`${apiBase}/paquetes/${id}`, { headers: authHeader() })
+    return $fetch(`${apiBase}/public/paquetes/${id}`)
   }
 
+  // Obtener salidas de un paquete (endpoint público)
   const getSalidas = async (
     paqueteId: number,
     params: {
@@ -45,8 +45,8 @@ export const usePaquetesTuristicos = () => {
     if (params.fecha) query.append('fecha', params.fecha)
     if (params.tipo) query.append('tipo', params.tipo)
     const qs = query.toString()
-    const url = qs ? `${apiBase}/paquetes/${paqueteId}/salidas?${qs}` : `${apiBase}/paquetes/${paqueteId}/salidas`
-    return $fetch(url, { headers: authHeader() })
+    const url = qs ? `${apiBase}/public/paquetes/${paqueteId}/salidas?${qs}` : `${apiBase}/public/paquetes/${paqueteId}/salidas`
+    return $fetch(url)
   }
 
   return {

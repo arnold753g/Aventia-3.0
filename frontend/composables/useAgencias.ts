@@ -1,0 +1,293 @@
+import { useAuthStore } from '~/stores/auth'
+
+export const useAgencias = () => {
+  const config = useRuntimeConfig()
+  const apiBase = config.public.apiBase
+  const authStore = useAuthStore()
+
+  const authHeader = () => (authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined)
+
+  // Obtener lista de agencias (endpoint público)
+  const getAgencias = async (params: {
+    page?: number
+    limit?: number
+    search?: string
+    departamento_id?: string
+    status?: string
+    licencia_turistica?: string
+    especialidad_id?: string
+    encargado_id?: string
+    visible_publico?: string
+    sort_by?: string
+    sort_order?: string
+  } = {}) => {
+    const query = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        query.append(key, String(value))
+      }
+    })
+
+    const qs = query.toString()
+    const url = qs ? `${apiBase}/public/agencias?${qs}` : `${apiBase}/public/agencias`
+
+    return $fetch(url)
+  }
+
+  // Obtener una agencia (endpoint público) - Acepta ID numérico o slug
+  const getAgencia = async (idOrSlug: number | string) => {
+    return $fetch(`${apiBase}/public/agencias/${idOrSlug}`)
+  }
+
+  // Obtener mi agencia (encargado)
+  const getMiAgencia = async () => {
+    return $fetch(`${apiBase}/agencias/me`, {
+      headers: authHeader()
+    })
+  }
+
+  // Crear agencia rápida
+  const createAgenciaRapida = async (data: {
+    nombre_comercial: string
+    departamento_id: number
+    telefono: string
+    encargado_principal_id: number
+  }) => {
+    return $fetch(`${apiBase}/agencias/rapida`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  // Crear agencia completa
+  const createAgenciaCompleta = async (data: any) => {
+    return $fetch(`${apiBase}/agencias/completa`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  // Actualizar agencia
+  const updateAgencia = async (id: number, data: any) => {
+    return $fetch(`${apiBase}/agencias/${id}`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  // Políticas de paquetes (por agencia)
+  const getPaquetePoliticas = async (agenciaId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/paquete-politicas`, {
+      headers: authHeader()
+    })
+  }
+
+  const updatePaquetePoliticas = async (
+    agenciaId: number,
+    data: {
+      edad_minima_pago: number
+      recargo_privado_porcentaje: number
+      politica_cancelacion?: string | null
+    }
+  ) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/paquete-politicas`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  // Datos de pago (transferencia / QR)
+  const getAgenciaDatosPago = async (agenciaId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/datos-pago`, {
+      headers: authHeader()
+    })
+  }
+
+  const updateAgenciaDatosPago = async (
+    agenciaId: number,
+    data: {
+      nombre_banco?: string | null
+      numero_cuenta?: string | null
+      nombre_titular?: string | null
+      activo?: boolean
+    }
+  ) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/datos-pago`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  const uploadQrPago = async (agenciaId: number, formData: FormData) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/datos-pago/qr/upload`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: formData
+    })
+  }
+
+  // Capacidad operativa (salidas simultáneas)
+  const getAgenciaCapacidad = async (agenciaId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/capacidad`, {
+      headers: authHeader()
+    })
+  }
+
+  const updateAgenciaCapacidad = async (
+    agenciaId: number,
+    data: {
+      max_salidas_por_dia?: number
+      max_salidas_por_horario?: number
+    }
+  ) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/capacidad`, {
+      method: 'PUT',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  const getAgenciaDashboard = async (agenciaId: number, params: {
+    mes?: number
+    anio?: number
+  } = {}) => {
+    const query = new URLSearchParams()
+    if (params.mes !== undefined) query.set('mes', String(params.mes))
+    if (params.anio !== undefined) query.set('anio', String(params.anio))
+
+    const qs = query.toString()
+    const url = qs
+      ? `${apiBase}/agencias/${agenciaId}/dashboard?${qs}`
+      : `${apiBase}/agencias/${agenciaId}/dashboard`
+
+    return $fetch(url, {
+      headers: authHeader()
+    })
+  }
+
+  // Eliminar agencia
+  const deleteAgencia = async (id: number) => {
+    return $fetch(`${apiBase}/admin/agencias/${id}`, {
+      method: 'DELETE',
+      headers: authHeader()
+    })
+  }
+
+  // Actualizar status
+  const updateStatus = async (id: number, status: string) => {
+    return $fetch(`${apiBase}/admin/agencias/${id}/status`, {
+      method: 'PATCH',
+      headers: authHeader(),
+      body: { status }
+    })
+  }
+
+  // Agregar foto (con archivo)
+  const uploadFoto = async (agenciaId: number, formData: FormData) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/fotos/upload`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: formData
+    })
+  }
+
+  // Eliminar foto
+  const removeFoto = async (agenciaId: number, fotoId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/fotos/${fotoId}`, {
+      method: 'DELETE',
+      headers: authHeader()
+    })
+  }
+
+  // Agregar especialidad
+  const addEspecialidad = async (agenciaId: number, data: {
+    categoria_id: number
+    es_principal?: boolean
+  }) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/especialidades`, {
+      method: 'POST',
+      headers: authHeader(),
+      body: data
+    })
+  }
+
+  // Eliminar especialidad
+  const removeEspecialidad = async (agenciaId: number, especialidadId: number) => {
+    return $fetch(`${apiBase}/agencias/${agenciaId}/especialidades/${especialidadId}`, {
+      method: 'DELETE',
+      headers: authHeader()
+    })
+  }
+
+  // Obtener estadísticas
+  const getStats = async () => {
+    return $fetch(`${apiBase}/admin/agencias/stats`, {
+      headers: authHeader()
+    })
+  }
+
+  // Obtener departamentos (endpoint público)
+  const getDepartamentos = async () => {
+    return $fetch(`${apiBase}/data/departamentos`)
+  }
+
+  // Obtener categorías (endpoint público)
+  const getCategorias = async () => {
+    return $fetch(`${apiBase}/data/categorias`)
+  }
+
+  // Obtener días (endpoint público)
+  const getDias = async () => {
+    return $fetch(`${apiBase}/data/dias`)
+  }
+
+  // Obtener encargados
+  const getEncargados = async (params: {
+    only_unassigned?: boolean
+    agencia_id?: number
+  } = {}) => {
+    const query = new URLSearchParams()
+    if (params.only_unassigned !== undefined) query.set('only_unassigned', String(params.only_unassigned))
+    if (params.agencia_id !== undefined) query.set('agencia_id', String(params.agencia_id))
+
+    const qs = query.toString()
+    const url = qs ? `${apiBase}/agencias/data/encargados?${qs}` : `${apiBase}/agencias/data/encargados`
+
+    return $fetch(url, {
+      headers: authHeader()
+    })
+  }
+
+  return {
+    getAgencias,
+    getAgencia,
+    getMiAgencia,
+    createAgenciaRapida,
+    createAgenciaCompleta,
+    updateAgencia,
+    getPaquetePoliticas,
+    updatePaquetePoliticas,
+    getAgenciaDatosPago,
+    updateAgenciaDatosPago,
+    uploadQrPago,
+    getAgenciaCapacidad,
+    updateAgenciaCapacidad,
+    getAgenciaDashboard,
+    deleteAgencia,
+    updateStatus,
+    uploadFoto,
+    removeFoto,
+    addEspecialidad,
+    removeEspecialidad,
+    getStats,
+    getDepartamentos,
+    getCategorias,
+    getDias,
+    getEncargados
+  }
+}

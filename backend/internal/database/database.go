@@ -1,0 +1,139 @@
+package database
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"andaria-backend/internal/config"
+	"andaria-backend/internal/models"
+	"andaria-backend/internal/seeds"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+)
+
+var DB *gorm.DB
+var ConnPool *pgxpool.Pool
+
+func Connect(cfg *config.Config) error {
+	dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode,
+	)
+
+	// Conexión GORM (para operaciones normales)
+	var err error
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger:                                   logger.Default.LogMode(logger.Info),
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	log.Println("Database connection established")
+
+	// Conexión pgx pool (para LISTEN/NOTIFY)
+	connString := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBSSLMode,
+	)
+
+	ConnPool, err = pgxpool.New(context.Background(), connString)
+	if err != nil {
+		return fmt.Errorf("failed to create pgx pool: %w", err)
+	}
+
+	log.Println("PostgreSQL connection pool created")
+
+	// Ejecutar migraciones automáticas
+	if err := runMigrations(); err != nil {
+		log.Printf("Warning: migrations skipped or failed: %v", err)
+		log.Println("Continuing without migrations - using existing schema")
+	}
+
+	// Bootstrap de funciones SQL requeridas por el negocio.
+	if err := ApplySQLBootstrap(DB); err != nil {
+		log.Printf("Warning: SQL bootstrap failed: %v", err)
+		log.Println("Continuing - some features may not work until the DB is prepared")
+	}
+
+	// Ejecutar seeds de datos base
+	if err := runSeeds(); err != nil {
+		log.Printf("Warning during seeds: %v", err)
+		log.Println("Continuing - some seeds may have been skipped")
+	}
+
+	return nil
+}
+
+func runMigrations() error {
+	log.Println("Checking database schema...")
+
+	// Migrar todas las tablas en orden de dependencias
+	log.Println("Creating database tables...")
+
+	err := DB.AutoMigrate(
+		// Tablas base sin dependencias
+		&models.Usuario{},
+		&models.Departamento{},
+		&models.Dia{},
+		&models.Mes{},
+		&models.CategoriaAtraccion{},
+
+		// Tablas con dependencias nivel 1
+		&models.Provincia{},
+		&models.SubcategoriaAtraccion{},
+		&models.Notificacion{},
+
+		// Tablas con dependencias nivel 2
+		&models.AtraccionTuristica{},
+		&models.AgenciaTurismo{},
+		&models.PaquetePolitica{},
+		&models.AgenciaDatosPago{},
+		&models.AgenciaCapacidad{},
+		&models.PaqueteTuristico{},
+		&models.PaqueteSalidaHabilitada{},
+		&models.CompraPaquete{},
+		&models.PagoCompra{},
+		&models.PaqueteItinerario{},
+		&models.PaqueteFoto{},
+		&models.PaqueteAtraccion{},
+
+		// Tablas de relaciones
+		&models.AtraccionSubcategoria{},
+		&models.AtraccionFoto{},
+		&models.AgenciaFoto{},
+		&models.AgenciaEspecialidad{},
+	)
+
+	if err != nil {
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	log.Println("Tables created successfully")
+	return nil
+}
+
+func runSeeds() error {
+	log.Println("Running database seeds...")
+
+	// Ejecutar todos los seeds
+	if err := seeds.RunAllSeeds(DB); err != nil {
+		return fmt.Errorf("seeds failed: %w", err)
+	}
+
+	return nil
+}
+
+func GetDB() *gorm.DB {
+	return DB
+}
+
+func GetConnPool() *pgxpool.Pool {
+	return ConnPool
+}

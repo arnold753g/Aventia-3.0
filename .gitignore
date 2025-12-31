@@ -1,0 +1,29 @@
+# IDEs
+.idea/
+.vscode/
+
+.nul/
+
+# Backend uploads
+backend/uploads/
+/nul
+
+# Docker & Environment
+.env
+.env.local
+.env.*.local
+!.env.production
+
+# Backups
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+
+# Logs
+*.log
+logs/
+
+# SSL Certificates (keep directory structure)
+nginx/ssl/*
+!nginx/ssl/.gitkeep

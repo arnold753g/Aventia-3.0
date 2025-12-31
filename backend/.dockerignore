@@ -1,0 +1,64 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+README.md
+docs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test files
+*_test.go
+**/*_test.go
+test/
+tests/
+
+# Uploads (will be in volume)
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.pdf
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+main
+main.exe
+andaria-backend
+andaria-backend.exe
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Migrations (copied separately)
+migrations/
+
+# Scripts
+scripts/
+*.sh
+*.bat
+*.ps1
+
+# OS files
+.DS_Store
+Thumbs.db

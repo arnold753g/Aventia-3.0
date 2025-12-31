@@ -1,0 +1,130 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: andaria-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-Andaria_01}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - andaria-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-Andaria_01}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # No external port exposure - internal only
+
+  # Backend (Go API)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: andaria-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-Andaria_01}
+      DB_SSLMODE: disable
+      SERVER_PORT: 5750
+      SERVER_HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-168h}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      OTP_SECRET: ${OTP_SECRET}
+      OTP_EXPIRY_MINUTES: ${OTP_EXPIRY_MINUTES:-10}
+      OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-5}
+      OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
+      OTP_MAX_RESENDS_PER_DAY: ${OTP_MAX_RESENDS_PER_DAY:-3}
+      PASSWORD_RESET_EXPIRY_MINUTES: ${PASSWORD_RESET_EXPIRY_MINUTES:-20}
+      PASSWORD_RESET_MAX_ATTEMPTS: ${PASSWORD_RESET_MAX_ATTEMPTS:-5}
+      COMPRA_EXPIRACION_MINUTOS: ${COMPRA_EXPIRACION_MINUTOS:-30}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
+      APP_ENV: production
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - andaria-internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:5750/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (Nuxt SSR)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: andaria-frontend
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NUXT_HOST: 0.0.0.0
+      NUXT_PORT: 3000
+      NODE_ENV: production
+      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE}
+      NUXT_PUBLIC_WS_BASE: ${NUXT_PUBLIC_WS_BASE}
+    networks:
+      - andaria-internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: andaria-nginx
+    restart: always
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - backend_uploads:/var/www/uploads:ro
+    networks:
+      - andaria-internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  andaria-internal:
+    driver: bridge
+    name: andaria-internal
+
+volumes:
+  postgres_data:
+    name: andaria-postgres-data
+  backend_uploads:
+    name: andaria-backend-uploads

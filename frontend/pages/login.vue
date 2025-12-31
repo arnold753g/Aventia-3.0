@@ -118,45 +118,7 @@
             Registrate aqui
           </NuxtLink>
         </div>
-
-        <div class="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <p class="text-sm font-semibold text-white mb-3">Usuarios de prueba</p>
-          <div class="space-y-3 text-xs text-white/60">
-            <div class="flex items-center justify-between gap-2">
-              <span>Admin: admin@andaria.bo</span>
-              <Button
-                label="Usar"
-                size="small"
-                text
-                class="!text-white/70 hover:!text-white"
-                @click="fillCredentials('admin@andaria.bo', 'admin123')"
-                :disabled="loading"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-2">
-              <span>Turista: juan.perez@email.com</span>
-              <Button
-                label="Usar"
-                size="small"
-                text
-                class="!text-white/70 hover:!text-white"
-                @click="fillCredentials('juan.perez@email.com', 'turista123')"
-                :disabled="loading"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-2">
-              <span>Agencia: maria.lopez@agencia.com</span>
-              <Button
-                label="Usar"
-                size="small"
-                text
-                class="!text-white/70 hover:!text-white"
-                @click="fillCredentials('maria.lopez@agencia.com', 'agencia123')"
-                :disabled="loading"
-              />
-            </div>
-          </div>
-        </div>
+        
       </div>
     </div>
 

@@ -75,12 +75,27 @@ services:
       # Frontend URL
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
 
+
+      # CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+
+      # Admin bootstrap
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_NOMBRE: ${ADMIN_NOMBRE}
+      ADMIN_APELLIDO_PATERNO: ${ADMIN_APELLIDO_PATERNO}
+      ADMIN_APELLIDO_MATERNO: ${ADMIN_APELLIDO_MATERNO}
+      ADMIN_CI: ${ADMIN_CI}
+      ADMIN_EXPEDIDO: ${ADMIN_EXPEDIDO}
+      ADMIN_PHONE: ${ADMIN_PHONE}
+      ADMIN_FECHA_NACIMIENTO: ${ADMIN_FECHA_NACIMIENTO}
+      ADMIN_CIUDAD: ${ADMIN_CIUDAD}
       # Environment
       APP_ENV: ${APP_ENV:-development}
     volumes:
       - backend_uploads:/app/uploads
     ports:
-      - "${BACKEND_PORT:-5750}:5750"
+      - "${BACKEND_PORT:-5850}:5750"
     networks:
       - andaria-network
     healthcheck:
@@ -110,7 +125,7 @@ services:
       NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-http://localhost:5750/api/v1}
       NUXT_PUBLIC_WS_BASE: ${NUXT_PUBLIC_WS_BASE:-ws://localhost:5750}
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-5980}:3000"
     networks:
       - andaria-network
     healthcheck:

@@ -118,7 +118,7 @@
             Registrate aqui
           </NuxtLink>
         </div>
-        
+
       </div>
     </div>
 

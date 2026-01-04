@@ -1,64 +1,77 @@
 package middleware
 
 import (
-	"os"
-	"strings"
+    "os"
+    "strings"
 
-	"github.com/rs/cors"
+    "github.com/rs/cors"
 )
 
 func SetupCORS() *cors.Cors {
-	// Orígenes permitidos desde variable de entorno o defaults
-	allowedOrigins := getOrigins()
+    allowedOrigins := parseAllowedOrigins(os.Getenv("ALLOWED_ORIGINS"))
+    allowedSet := make(map[string]struct{}, len(allowedOrigins))
+    for _, origin := range allowedOrigins {
+        allowedSet[origin] = struct{}{}
+    }
 
-	return cors.New(cors.Options{
-		AllowedOrigins: allowedOrigins,
-		AllowedMethods: []string{
-			"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH",
-		},
-		AllowedHeaders: []string{
-			"Accept",
-			"Authorization",
-			"Content-Type",
-			"X-CSRF-Token",
-			"X-Requested-With",
-		},
-		ExposedHeaders: []string{
-			"Link",
-			"X-Total-Count",
-			"X-RateLimit-Limit",
-			"X-RateLimit-Remaining",
-			"X-Cache",
-			"Cache-Control",
-		},
-		AllowCredentials: true,
-		MaxAge:           300, // 5 minutos de caché para preflight requests
-	})
+    return cors.New(cors.Options{
+        AllowOriginFunc: func(origin string) bool {
+            if origin == "" {
+                return false
+            }
+            _, ok := allowedSet[origin]
+            return ok
+        },
+        AllowedMethods: []string{
+            "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH",
+        },
+        AllowedHeaders: []string{
+            "Accept",
+            "Authorization",
+            "Content-Type",
+            "X-CSRF-Token",
+            "X-Requested-With",
+        },
+        ExposedHeaders: []string{
+            "Link",
+            "X-Total-Count",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-Cache",
+            "Cache-Control",
+        },
+        AllowCredentials: true,
+        MaxAge:           300,
+    })
 }
 
-func getOrigins() []string {
-	// Leer desde variable de entorno ALLOWED_ORIGINS
-	// Formato: "http://localhost:3000,http://localhost:3001,https://midominio.com"
-	originsEnv := os.Getenv("ALLOWED_ORIGINS")
+func parseAllowedOrigins(raw string) []string {
+    raw = strings.TrimSpace(raw)
+    if raw == "" {
+        return []string{
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:5173",
+            "http://localhost:8080",
+        }
+    }
 
-	if originsEnv != "" {
-		origins := strings.Split(originsEnv, ",")
-		trimmed := make([]string, 0, len(origins))
-		for _, origin := range origins {
-			if cleaned := strings.TrimSpace(origin); cleaned != "" {
-				trimmed = append(trimmed, cleaned)
-			}
-		}
-		if len(trimmed) > 0 {
-			return trimmed
-		}
-	}
+    parts := strings.Split(raw, ",")
+    out := make([]string, 0, len(parts))
+    for _, part := range parts {
+        if origin := strings.TrimSpace(part); origin != "" {
+            out = append(out, origin)
+        }
+    }
 
-	// Defaults para desarrollo
-	return []string{
-		"http://localhost:3000",
-		"http://localhost:3001",
-		"http://localhost:5173", // Vite
-		"http://localhost:8080",
-	}
+    if len(out) == 0 {
+        return []string{
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:5173",
+            "http://localhost:8080",
+        }
+    }
+
+    return out
 }
